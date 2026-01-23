@@ -2,8 +2,8 @@ from fastapi import FastAPI
 from app.db.session import engine
 from app.db.base import Base
 
-# Import models so SQLAlchemy knows them
 from app.db.models.user import User  # noqa
+from app.api.routes.auth import router as auth_router
 
 app = FastAPI(
     title="AI-Assisted Automated Recruitment System",
@@ -11,6 +11,8 @@ app = FastAPI(
 )
 
 Base.metadata.create_all(bind=engine)
+
+app.include_router(auth_router)
 
 @app.get("/health")
 def health_check():
