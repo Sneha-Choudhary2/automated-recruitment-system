@@ -1,0 +1,17 @@
+SKILLS = {
+    "python": ["python"],
+    "java": ["java"],
+    "sql": ["sql", "mysql", "postgresql", "sqlite"],
+    "machine learning": ["machine learning", "ml"],
+    "deep learning": ["deep learning", "dl"],
+    "data analysis": ["data analysis", "data analytics"],
+    "pandas": ["pandas"],
+    "numpy": ["numpy"],
+    "scikit-learn": ["scikit-learn", "sklearn"],
+    "tensorflow": ["tensorflow"],
+    "pytorch": ["pytorch", "torch"],
+    "fastapi": ["fastapi"],
+    "flask": ["flask"],
+    "docker": ["docker"],
+    "git": ["git", "github"],
+}
