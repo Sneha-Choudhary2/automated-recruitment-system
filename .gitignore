@@ -13,3 +13,5 @@ __pycache__/
 
 # Uploaded resumes (runtime data)
 uploads/
+
+.ipynb_checkpoints/

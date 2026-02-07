@@ -12,6 +12,8 @@ from app.api.routes.auth import router as auth_router
 from app.api.routes.admin import router as admin_router
 from app.api.routes.resumes import router as resumes_router
 from app.api import jobs
+from app.api.ats_routes import router as ats_router
+
 
 
 
@@ -29,6 +31,8 @@ app.include_router(auth_router)
 app.include_router(admin_router)
 app.include_router(resumes_router)
 app.include_router(jobs.router)
+app.include_router(ats_router)
+
 
 
 
