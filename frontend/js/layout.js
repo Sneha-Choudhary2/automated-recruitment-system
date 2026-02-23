@@ -66,8 +66,14 @@ async function loadPage(pagePath) {
                 loadJobDescriptionPage();
             }
         }
+        if (pagePath.includes("upload.html")) {
+    if (typeof loadUploadPage === "function") {
+        loadUploadPage();
+    }
+}
 
     }, 100);
+    
 }
 
 // ===============================

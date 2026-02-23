@@ -993,3 +993,157 @@ input:focus, textarea:focus {
     background: #dc2626;
     color: white;
 }
+.upload-container {
+    max-width: 600px;
+}
+
+.drop-zone {
+    margin-top: 20px;
+    border: 2px dashed #cbd5e1;
+    border-radius: 18px;
+    padding: 40px;
+    text-align: center;
+    background: #f8fafc;
+    cursor: pointer;
+    transition: 0.2s ease;
+}
+
+.drop-zone:hover {
+    background: #eef2ff;
+    border-color: #6366f1;
+}
+
+.drop-zone i {
+    width: 40px;
+    height: 40px;
+    margin-bottom: 10px;
+}
+
+.file-preview {
+    margin-top: 20px;
+    padding: 16px;
+    background: #f1f5f9;
+    border-radius: 14px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.upload-btn {
+    margin-top: 20px;
+    padding: 12px 20px;
+    border-radius: 14px;
+    border: none;
+    background: linear-gradient(90deg,#2563eb,#7c3aed);
+    color: white;
+    cursor: pointer;
+    font-weight: 600;
+    transition: 0.2s ease;
+}
+
+.upload-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.upload-btn:hover:not(:disabled) {
+    transform: translateY(-2px);
+}
+
+.upload-status {
+    margin-top: 16px;
+    font-size: 14px;
+}
+.upload-page {
+    max-width: 1000px;
+}
+
+.upload-header {
+    margin-bottom: 30px;
+}
+
+.upload-card,
+.pipeline-card {
+    background: white;
+    padding: 30px;
+    border-radius: 20px;
+    border: 1px solid #e5e7eb;
+    margin-bottom: 30px;
+}
+
+.lovable-drop-zone {
+    margin-top: 20px;
+    border: 2px dashed #d1d5db;
+    border-radius: 20px;
+    padding: 50px;
+    text-align: center;
+    background: #f9fafb;
+    cursor: pointer;
+    transition: 0.2s ease;
+}
+
+.lovable-drop-zone:hover {
+    border-color: #6366f1;
+    background: #f3f4ff;
+}
+
+.upload-icon {
+    width: 60px;
+    height: 60px;
+    background: #eef2ff;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 20px auto;
+}
+
+.browse-btn {
+    margin-top: 15px;
+    padding: 8px 16px;
+    border-radius: 12px;
+    border: 1px solid #e5e7eb;
+    background: white;
+    cursor: pointer;
+}
+
+.limit-text {
+    font-size: 12px;
+    margin-top: 12px;
+    color: #6b7280;
+}
+
+.primary-upload-btn {
+    margin-top: 20px;
+    padding: 12px 20px;
+    border-radius: 14px;
+    border: none;
+    background: linear-gradient(90deg,#2563eb,#7c3aed);
+    color: white;
+    cursor: pointer;
+    font-weight: 600;
+}
+
+.pipeline-steps {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 20px;
+    gap: 20px;
+}
+
+.step {
+    text-align: center;
+    flex: 1;
+}
+
+.circle {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: linear-gradient(90deg,#6366f1,#8b5cf6);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 10px auto;
+}

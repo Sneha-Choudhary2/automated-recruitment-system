@@ -1,64 +1,91 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>RecruitAI - Upload Resume</title>
-    <link rel="stylesheet" href="css/style.css">
-</head>
-<body>
+<div class="upload-page">
 
-<div class="layout">
+    <div class="upload-header">
+        <h1>Upload Resumes</h1>
+        <p>Upload candidate resumes for AI-powered parsing and authenticity analysis</p>
+    </div>
 
-    <!-- Sidebar -->
-    <aside class="sidebar">
-        <div class="logo">
-            <h2>RecruitAI</h2>
-            <span>Smart Hiring System</span>
-        </div>
+    <!-- Resume Upload Card -->
+    <div class="upload-card">
 
-        <nav>
-            <a href="dashboard.html">Dashboard</a>
-            <a href="candidates.html">Candidates</a>
-            <a href="upload.html" class="active">Upload Resume</a>
-            <a href="job-description.html">Job Description</a>
-            <a href="ai-detection.html">AI Detection</a>
-            <a href="skill-analysis.html">Skill Analysis</a>
-            <a href="analytics.html">Analytics</a>
-            <a href="settings.html">Settings</a>
-        </nav>
-    </aside>
+        <h3>Resume Upload</h3>
+        <p class="sub-text">
+            Drag and drop resumes or click to browse. Resumes are automatically analyzed for AI-generated content.
+        </p>
 
-    <!-- Main -->
-    <main class="main-content">
-
-        <h1>Upload Resume</h1>
-        <p class="subtitle">Upload candidate resumes for AI processing</p>
-
-        <div class="upload-card">
-            <div id="dropArea" class="drop-area">
-                <p>Drag & Drop resumes here</p>
-                <span>or</span>
-                <input type="file" id="fileInput" multiple hidden>
-                <button onclick="document.getElementById('fileInput').click()" class="btn-primary">
-                    Browse Files
-                </button>
-                <small>Supported: PDF, DOCX</small>
+        <div id="dropZone" class="lovable-drop-zone">
+            <div class="upload-icon">
+                <i data-lucide="upload"></i>
             </div>
 
-            <div id="fileList" class="file-list"></div>
+            <h4>Drag and drop resumes</h4>
+            <p>or click to browse from your computer</p>
 
-            <button onclick="uploadFiles()" class="btn-upload">
-                Upload & Process
+            <button type="button" class="browse-btn">
+                Browse Files
             </button>
 
-            <div id="loader" class="loader hidden"></div>
-            <div id="toast" class="toast hidden"></div>
+            <p class="limit-text">Maximum file size: 5MB per file</p>
+
+            <input type="file" id="resumeFile" hidden>
         </div>
 
-    </main>
-</div>
+        <div id="filePreview" class="file-preview" style="display:none;">
+            <div>
+                <strong id="fileName"></strong>
+                <p id="fileSize"></p>
+            </div>
+            <button id="removeFileBtn">✕</button>
+        </div>
 
-<script src="js/api.js"></script>
-<script src="js/upload.js"></script>
-</body>
-</html>
+        <button id="uploadBtn" class="primary-upload-btn" disabled>
+            Upload Resume
+        </button>
+
+        <div id="uploadStatus" class="upload-status"></div>
+
+    </div>
+
+    <!-- Processing Pipeline -->
+    <div class="pipeline-card">
+
+        <h3>Processing Pipeline</h3>
+        <p class="sub-text">What happens after you upload a resume</p>
+
+        <div class="pipeline-steps">
+
+            <div class="step">
+                <div class="circle">1</div>
+                <h4>Text Extraction</h4>
+                <p>Parse PDF/DOCX content</p>
+            </div>
+
+            <div class="step">
+                <div class="circle">2</div>
+                <h4>NLP Analysis</h4>
+                <p>Extract skills & experience</p>
+            </div>
+
+            <div class="step">
+                <div class="circle">3</div>
+                <h4>AI Detection</h4>
+                <p>Check for AI-generated text</p>
+            </div>
+
+            <div class="step">
+                <div class="circle">4</div>
+                <h4>Job Matching</h4>
+                <p>Calculate similarity scores</p>
+            </div>
+
+            <div class="step">
+                <div class="circle">5</div>
+                <h4>ML Prediction</h4>
+                <p>Generate shortlist probability</p>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>

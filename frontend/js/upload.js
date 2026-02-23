@@ -1,84 +1,129 @@
-let selectedFiles = [];
+function loadUploadPage() {
 
-const dropArea = document.getElementById("dropArea");
-const fileInput = document.getElementById("fileInput");
-const fileList = document.getElementById("fileList");
-const loader = document.getElementById("loader");
-const toast = document.getElementById("toast");
+    const dropZone = document.getElementById("dropZone");
+    const fileInput = document.getElementById("resumeFile");
+    const browseBtn = document.querySelector(".browse-btn");
 
-fileInput.addEventListener("change", handleFiles);
+    const filePreview = document.getElementById("filePreview");
+    const fileName = document.getElementById("fileName");
+    const fileSize = document.getElementById("fileSize");
+    const uploadBtn = document.getElementById("uploadBtn");
+    const removeBtn = document.getElementById("removeFileBtn");
+    const statusDiv = document.getElementById("uploadStatus");
 
-dropArea.addEventListener("dragover", (e) => {
-    e.preventDefault();
-    dropArea.classList.add("dragover");
-});
+    if (!dropZone) return;
 
-dropArea.addEventListener("dragleave", () => {
-    dropArea.classList.remove("dragover");
-});
+    let selectedFile = null;
 
-dropArea.addEventListener("drop", (e) => {
-    e.preventDefault();
-    dropArea.classList.remove("dragover");
-    selectedFiles = Array.from(e.dataTransfer.files);
-    renderFileList();
-});
+    // ==============================
+    // OPEN FILE PICKER
+    // ==============================
 
-function handleFiles(event) {
-    selectedFiles = Array.from(event.target.files);
-    renderFileList();
-}
-
-function renderFileList() {
-    fileList.innerHTML = "";
-    selectedFiles.forEach(file => {
-        fileList.innerHTML += `<div class="file-item">${file.name}</div>`;
-    });
-}
-
-async function uploadFiles() {
-
-    if (selectedFiles.length === 0) {
-        showToast("Please select at least one file.", "error");
-        return;
-    }
-
-    loader.classList.remove("hidden");
-
-    const formData = new FormData();
-    selectedFiles.forEach(file => {
-        formData.append("files", file);
+    browseBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        fileInput.click();
     });
 
-    try {
-        const response = await fetch("http://127.0.0.1:8000/api/upload-resume", {
-            method: "POST",
-            body: formData
-        });
+    dropZone.addEventListener("click", () => {
+        fileInput.click();
+    });
 
-        if (!response.ok) throw new Error("Upload failed");
+    fileInput.addEventListener("change", () => {
+        handleFile(fileInput.files[0]);
+    });
 
-        const result = await response.json();
+    // ==============================
+    // DRAG & DROP
+    // ==============================
 
-        showToast("Resume processed successfully!", "success");
+    dropZone.addEventListener("dragover", (e) => {
+        e.preventDefault();
+        dropZone.style.borderColor = "#6366f1";
+        dropZone.style.background = "#eef2ff";
+    });
 
-        selectedFiles = [];
-        fileList.innerHTML = "";
+    dropZone.addEventListener("dragleave", () => {
+        dropZone.style.borderColor = "#d1d5db";
+        dropZone.style.background = "#f9fafb";
+    });
 
-    } catch (error) {
-        console.error(error);
-        showToast("Upload failed. Check backend.", "error");
+    dropZone.addEventListener("drop", (e) => {
+        e.preventDefault();
+        dropZone.style.borderColor = "#d1d5db";
+        dropZone.style.background = "#f9fafb";
+        handleFile(e.dataTransfer.files[0]);
+    });
+
+    // ==============================
+    // HANDLE FILE
+    // ==============================
+
+    function handleFile(file) {
+
+        if (!file) return;
+
+        selectedFile = file;
+
+        fileName.textContent = file.name;
+        fileSize.textContent = (file.size / 1024).toFixed(2) + " KB";
+
+        filePreview.style.display = "flex";
+        uploadBtn.disabled = false;
+        statusDiv.textContent = "";
     }
 
-    loader.classList.add("hidden");
-}
+    // ==============================
+    // REMOVE FILE
+    // ==============================
 
-function showToast(message, type) {
-    toast.textContent = message;
-    toast.className = `toast ${type}`;
-    toast.classList.remove("hidden");
+    removeBtn.addEventListener("click", () => {
+        selectedFile = null;
+        fileInput.value = "";
+        filePreview.style.display = "none";
+        uploadBtn.disabled = true;
+        statusDiv.textContent = "";
+    });
 
-    setTimeout(() => {
-        toast.classList.add("hidden");
-    }, 3000);
+    // ==============================
+    // UPLOAD TO BACKEND
+    // ==============================
+
+    uploadBtn.addEventListener("click", async () => {
+
+        if (!selectedFile) return;
+
+        const formData = new FormData();
+        formData.append("file", selectedFile);
+
+        uploadBtn.textContent = "Uploading...";
+        uploadBtn.disabled = true;
+
+        try {
+
+            const response = await fetch(
+                "http://127.0.0.1:8000/resumes/upload",
+                {
+                    method: "POST",
+                    body: formData
+                }
+            );
+
+            if (!response.ok) {
+                throw new Error("Upload failed");
+            }
+
+            statusDiv.style.color = "green";
+            statusDiv.textContent = "Resume uploaded successfully!";
+
+            uploadBtn.textContent = "Upload Resume";
+
+        } catch (error) {
+
+            statusDiv.style.color = "red";
+            statusDiv.textContent = "Upload failed. Try again.";
+
+            uploadBtn.textContent = "Upload Resume";
+            uploadBtn.disabled = false;
+        }
+    });
 }
