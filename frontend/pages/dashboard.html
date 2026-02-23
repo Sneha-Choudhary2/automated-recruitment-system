@@ -1,0 +1,87 @@
+<!-- HERO -->
+<div class="hero-card">
+    <div class="hero-tag">AI-Powered Recruitment</div>
+    <h1>Welcome to RecruitAI</h1>
+    <p>
+        Automated candidate screening, skill gap analysis,
+        and intelligent recommendations powered by Machine Learning and NLP.
+    </p>
+
+    <div class="hero-actions">
+        <button class="btn-primary">Upload Resume</button>
+        <button class="btn-outline">Create Job</button>
+    </div>
+</div>
+
+<!-- STATS -->
+<div class="stats-row">
+
+    <div class="stat-card">
+        <p>Total Candidates</p>
+        <h3 id="totalCandidates">0</h3>
+    </div>
+
+    <div class="stat-card">
+        <p>Active Jobs</p>
+        <h3 id="activeJobs">0</h3>
+    </div>
+
+    <div class="stat-card">
+        <p>Avg Match Score</p>
+        <h3 id="avgMatch">0%</h3>
+    </div>
+
+    <div class="stat-card">
+        <p>Shortlisted</p>
+        <h3 id="shortlisted">0</h3>
+    </div>
+
+</div>
+
+<!-- GRID -->
+<div class="dashboard-grid">
+
+    <!-- LEFT SIDE -->
+    <div class="card">
+
+        <div class="job-selector">
+            <div>
+                <h3 id="currentJobTitle">Loading job...</h3>
+                <span class="sub-text">Select job to view ranked candidates</span>
+            </div>
+
+            <select id="jobDropdown" class="job-dropdown"></select>
+        </div>
+
+        <div class="card-header">
+            <h3>Top Candidates</h3>
+        </div>
+
+        <div id="topCandidatesList"></div>
+    </div>
+
+    <!-- RIGHT SIDE -->
+    <div class="card quick-actions">
+        <h3>Quick Actions</h3>
+
+        <button class="quick-btn">Upload New Resume</button>
+        <button class="quick-btn">Create Job Description</button>
+        <button class="quick-btn">View Rankings</button>
+        <button class="quick-btn">Analyze Skill Gaps</button>
+    </div>
+
+</div>
+
+<!-- ACTIVE JOBS -->
+<div class="card job-section">
+
+    <div class="job-section-header">
+        <h3>Active Job Positions</h3>
+        <button id="manageJobsBtn" class="manage-jobs-btn">
+            Manage Jobs
+        </button>
+    </div>
+
+    <div id="activeJobsList"></div>
+
+</div>

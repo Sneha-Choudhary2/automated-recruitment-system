@@ -1,11 +1,3 @@
-from sqlalchemy.orm import DeclarativeBase
-from app.db.session import engine
+from sqlalchemy.orm import declarative_base
 
-class Base(DeclarativeBase):
-    pass
-
-# IMPORTANT: import models here
-from app.models.job_description import JobDescription
-
-# Create tables
-Base.metadata.create_all(bind=engine)
+Base = declarative_base()

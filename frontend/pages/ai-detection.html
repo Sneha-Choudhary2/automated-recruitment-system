@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>RecruitAI - AI Detection</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<div class="layout">
+
+    <!-- Sidebar -->
+    <aside class="sidebar">
+        <div class="logo">
+            <h2>RecruitAI</h2>
+            <span>Smart Hiring System</span>
+        </div>
+
+        <nav>
+            <a href="dashboard.html">Dashboard</a>
+            <a href="candidates.html">Candidates</a>
+            <a href="upload.html">Upload Resume</a>
+            <a href="job-description.html">Job Description</a>
+            <a href="ai-detection.html" class="active">AI Detection</a>
+            <a href="skill-analysis.html">Skill Analysis</a>
+            <a href="analytics.html">Analytics</a>
+            <a href="settings.html">Settings</a>
+        </nav>
+    </aside>
+
+    <!-- Main -->
+    <main class="main-content">
+
+        <h1>AI Resume Detection</h1>
+        <p class="subtitle">Analyze whether resume content is AI-generated</p>
+
+        <div class="card">
+
+            <label>Select Candidate</label>
+            <select id="candidateSelect"></select>
+
+            <p style="text-align:center; margin:15px 0;">OR</p>
+
+            <label>Paste Resume Text</label>
+            <textarea id="resumeText" placeholder="Paste resume content here..."></textarea>
+
+            <button onclick="runDetection()" class="btn-primary" style="margin-top:15px;">
+                Analyze
+            </button>
+
+        </div>
+
+        <div id="resultCard" class="card hidden" style="margin-top:20px;">
+            <h3>Detection Result</h3>
+
+            <div id="aiScore" style="font-size:28px; font-weight:bold;"></div>
+            <div id="riskBadge" class="risk-badge"></div>
+
+            <div class="progress-bar" style="margin-top:15px;">
+                <div id="confidenceBar" class="progress-fill"></div>
+            </div>
+
+            <p id="confidenceText" style="margin-top:8px;"></p>
+
+            <div style="margin-top:20px;">
+                <h4>Explanation</h4>
+                <p id="explanation"></p>
+            </div>
+        </div>
+
+    </main>
+</div>
+
+<script src="js/api.js"></script>
+<script src="js/ai-detection.js"></script>
+</body>
+</html>

@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>RecruitAI - Analytics</title>
+    <link rel="stylesheet" href="css/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+
+<div class="layout">
+
+    <!-- Sidebar -->
+    <aside class="sidebar">
+        <div class="logo">
+            <h2>RecruitAI</h2>
+            <span>Smart Hiring System</span>
+        </div>
+
+        <nav>
+            <a href="dashboard.html">Dashboard</a>
+            <a href="candidates.html">Candidates</a>
+            <a href="upload.html">Upload Resume</a>
+            <a href="job-description.html">Job Description</a>
+            <a href="ai-detection.html">AI Detection</a>
+            <a href="skill-analysis.html">Skill Analysis</a>
+            <a href="analytics.html" class="active">Analytics</a>
+            <a href="settings.html">Settings</a>
+        </nav>
+    </aside>
+
+    <!-- Main -->
+    <main class="main-content">
+
+        <h1>Analytics Dashboard</h1>
+        <p class="subtitle">AI-powered recruitment insights</p>
+
+        <!-- Stats Cards -->
+        <div class="stats-grid">
+            <div class="card">
+                <h3>Total Candidates</h3>
+                <p id="totalCandidates">-</p>
+            </div>
+            <div class="card">
+                <h3>Average Match Score</h3>
+                <p id="avgScore">-</p>
+            </div>
+            <div class="card">
+                <h3>Active Jobs</h3>
+                <p id="activeJobs">-</p>
+            </div>
+        </div>
+
+        <!-- Charts -->
+        <div class="chart-grid">
+
+            <div class="card">
+                <h3>Score Distribution</h3>
+                <canvas id="scoreChart"></canvas>
+            </div>
+
+            <div class="card">
+                <h3>Experience Distribution</h3>
+                <canvas id="experienceChart"></canvas>
+            </div>
+
+            <div class="card">
+                <h3>Top Skills</h3>
+                <canvas id="skillsChart"></canvas>
+            </div>
+
+        </div>
+
+    </main>
+</div>
+
+<script src="js/api.js"></script>
+<script src="js/analytics.js"></script>
+</body>
+</html>

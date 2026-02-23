@@ -1,6 +1,7 @@
 from pydantic import BaseModel
-from datetime import datetime
 from typing import Optional
+from datetime import datetime
+
 
 class JobCreate(BaseModel):
     title: str

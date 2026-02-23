@@ -5,23 +5,22 @@ from app.core.security import hash_password
 db = SessionLocal()
 
 email = "admin@ats.com"
-password = "admin123"   # change later
-role = "admin"
+password = "admin123"
 
-existing = db.query(User).filter(User.email == email).first()
+user = db.query(User).filter(User.email == email).first()
 
-if existing:
-    print("Admin user already exists.")
+if user:
+    user.hashed_password = hash_password(password)
+    print("Admin password reset successfully.")
 else:
     user = User(
         email=email,
         hashed_password=hash_password(password),
-        role=role,
+        role="admin",
         is_active=True
     )
     db.add(user)
-    db.commit()
     print("Admin user created successfully.")
 
+db.commit()
 db.close()
-

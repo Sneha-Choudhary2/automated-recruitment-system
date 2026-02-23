@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>RecruitAI - Upload Resume</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<div class="layout">
+
+    <!-- Sidebar -->
+    <aside class="sidebar">
+        <div class="logo">
+            <h2>RecruitAI</h2>
+            <span>Smart Hiring System</span>
+        </div>
+
+        <nav>
+            <a href="dashboard.html">Dashboard</a>
+            <a href="candidates.html">Candidates</a>
+            <a href="upload.html" class="active">Upload Resume</a>
+            <a href="job-description.html">Job Description</a>
+            <a href="ai-detection.html">AI Detection</a>
+            <a href="skill-analysis.html">Skill Analysis</a>
+            <a href="analytics.html">Analytics</a>
+            <a href="settings.html">Settings</a>
+        </nav>
+    </aside>
+
+    <!-- Main -->
+    <main class="main-content">
+
+        <h1>Upload Resume</h1>
+        <p class="subtitle">Upload candidate resumes for AI processing</p>
+
+        <div class="upload-card">
+            <div id="dropArea" class="drop-area">
+                <p>Drag & Drop resumes here</p>
+                <span>or</span>
+                <input type="file" id="fileInput" multiple hidden>
+                <button onclick="document.getElementById('fileInput').click()" class="btn-primary">
+                    Browse Files
+                </button>
+                <small>Supported: PDF, DOCX</small>
+            </div>
+
+            <div id="fileList" class="file-list"></div>
+
+            <button onclick="uploadFiles()" class="btn-upload">
+                Upload & Process
+            </button>
+
+            <div id="loader" class="loader hidden"></div>
+            <div id="toast" class="toast hidden"></div>
+        </div>
+
+    </main>
+</div>
+
+<script src="js/api.js"></script>
+<script src="js/upload.js"></script>
+</body>
+</html>

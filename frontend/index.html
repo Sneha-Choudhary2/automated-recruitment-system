@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>RecruitAI</title>
+
+    <!-- Global CSS -->
+    <link rel="stylesheet" href="style.css">
+
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+
+<body>
+
+<div class="app">
+
+    <!-- Sidebar injected here -->
+    <div id="sidebar-container"></div>
+
+    <!-- Main Area -->
+    <div class="main-area">
+
+        <!-- Topbar injected here -->
+        <div id="topbar-container"></div>
+
+        <!-- Page Content injected here -->
+        <div class="page-content" id="page-content"></div>
+
+    </div>
+
+</div>
+
+<script src="js/layout.js"></script>
+<script src="js/dashboard.js"></script>
+<script src="js/job-description.js"></script>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    if (window.lucide) {
+        lucide.createIcons();
+    }
+});
+</script>
+
+</body>
+</html>
