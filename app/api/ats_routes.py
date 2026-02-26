@@ -29,7 +29,7 @@ class RankByJobRequest(BaseModel):
 
 
 # ============================
-# ENDPOINTS
+# EVALUATE SINGLE RESUME
 # ============================
 
 @router.post("/evaluate-resume")
@@ -39,6 +39,10 @@ def evaluate_resume(data: EvaluateResumeRequest):
         jd_text=data.jd_text
     )
 
+
+# ============================
+# RANK RESUMES AGAINST JOB
+# ============================
 
 @router.post("/rank-resumes")
 def rank_resumes(data: RankByJobRequest, db: Session = Depends(get_db)):
@@ -57,10 +61,14 @@ def rank_resumes(data: RankByJobRequest, db: Session = Depends(get_db)):
     if not resumes:
         raise HTTPException(status_code=400, detail="No resumes uploaded")
 
-    # 3️⃣ Extract resume texts
-    resume_texts = [
-        r.extracted_text for r in resumes if r.extracted_text
-    ]
+    # 3️⃣ Create mapping: index → resume object
+    resume_map = {}
+    resume_texts = []
+
+    for index, resume in enumerate(resumes):
+        if resume.extracted_text:
+            resume_map[index] = resume
+            resume_texts.append(resume.extracted_text)
 
     if not resume_texts:
         raise HTTPException(
@@ -75,20 +83,24 @@ def rank_resumes(data: RankByJobRequest, db: Session = Depends(get_db)):
         top_n=data.top_n
     )
 
-    # 5️⃣ Attach metadata
+    # 5️⃣ Attach metadata safely
     ranked_output = []
 
-    for rank, item in enumerate(scores, start=1):
-        resume_index = item["resume_id"]
-        score = round(item["match_score"] * 100, 2)
+    for rank_position, item in enumerate(scores, start=1):
 
-        resume_obj = resumes[resume_index]
+        resume_index = item["resume_id"]
+        match_score = round(item["match_score"] * 100, 2)
+
+        resume_obj = resume_map.get(resume_index)
+
+        if not resume_obj:
+            continue
 
         ranked_output.append({
-            "rank": rank,
+            "rank": rank_position,
             "resume_id": resume_obj.id,
             "filename": resume_obj.filename,
-            "match_score": score
+            "match_score": match_score
         })
 
     return ranked_output

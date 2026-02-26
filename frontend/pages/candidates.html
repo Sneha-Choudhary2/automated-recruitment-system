@@ -1,82 +1,32 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8">
-    <title>RecruitAI - Candidates</title>
-    <link rel="stylesheet" href="style.css">
-</head>
-
-<body>
-
-<div class="app">
-
-    <!-- Sidebar -->
-    <aside class="sidebar">
-        <div>
-            <h2 class="logo">RecruitAI</h2>
-            <p class="tagline">Smart Hiring System</p>
-
-            <nav>
-                <a href="dashboard.html">Dashboard</a>
-                <a href="candidates.html" class="active">Candidates</a>
-                <a href="upload.html">Upload Resume</a>
-                <a href="job-description.html">Job Description</a>
-                <a href="analytics.html">Analytics</a>
-            </nav>
-        </div>
-
-        <div class="system-box">
-            <p>System Status</p>
-            <span class="online-dot"></span> Backend Connected
-        </div>
-    </aside>
-
-    <!-- Main -->
-    <main class="main">
-
-        <div class="topbar">
-            <input type="text" id="searchInput" placeholder="Search candidates..." />
-            <button id="themeToggle" class="theme-btn">🌙</button>
-        </div>
-
-        <div class="content">
-
-            <h1>Candidates</h1>
-            <p class="subtitle">Ranked by AI match score</p>
-
-            <!-- Job selector -->
-            <div class="job-select">
-                <label>Select Job ID:</label>
-                <input type="number" id="jobIdInput" value="3" min="1" />
-                <button onclick="loadCandidates()">Load</button>
-            </div>
-
-            <!-- Table -->
-            <div class="card">
-
-                <table class="modern-table">
-                    <thead>
-                        <tr>
-                            <th>Rank</th>
-                            <th>Resume ID</th>
-                            <th>Filename</th>
-                            <th>Score</th>
-                            <th>Status</th>
-                        </tr>
-                    </thead>
-                    <tbody id="candidateTable">
-                    </tbody>
-                </table>
-
-            </div>
-
-        </div>
-
-    </main>
-
+<div class="page-header">
+  <div>
+    <h1>Candidates</h1>
+    <p class="subtext">Ranked by match score</p>
+  </div>
+  <button class="btn-secondary">Export CSV</button>
 </div>
 
-<script src="js/candidates.js"></script>
+<div class="filters-row">
+  <input
+    type="text"
+    placeholder="Search by name, email, or skills..."
+    class="search-input"
+  />
 
-</body>
-</html>
+  <select id="job-select" class="dropdown">
+    <option value="">Select Job</option>
+  </select>
+
+  <select class="dropdown">
+    <option>All scores</option>
+  </select>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <h3>Ranked Candidates</h3>
+    <p>Click on a candidate to view detailed analysis</p>
+  </div>
+
+  <div id="candidates-table"></div>
+</div>

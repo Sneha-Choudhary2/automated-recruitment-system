@@ -1,86 +1,232 @@
-const API_BASE = "http://127.0.0.1:8000";
-
-document.addEventListener("DOMContentLoaded", () => {
-    setupTheme();
-    loadCandidates();
-});
+// ===============================
+// LOAD CANDIDATES PAGE
+// ===============================
 
 async function loadCandidates() {
-    const jobId = document.getElementById("jobIdInput").value;
+    await loadJobsDropdown();
+    await loadInitialResumes();
+}
+
+
+// ===============================
+// LOAD JOBS INTO DROPDOWN
+// ===============================
+
+async function loadJobsDropdown() {
+
+    const select = document.getElementById("job-select");
+    if (!select) return;
 
     try {
-        const res = await fetch(`${API_BASE}/ats/rank-resumes`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                job_id: parseInt(jobId),
-                top_n: 10
-            })
+        const res = await fetch("http://127.0.0.1:8000/jobs/");
+        const jobs = await res.json();
+
+        select.innerHTML = `<option value="">Select Job</option>`;
+
+        jobs.forEach(job => {
+            const option = document.createElement("option");
+            option.value = job.id;
+            option.textContent = job.title;
+            select.appendChild(option);
         });
 
-        const data = await res.json();
+        select.addEventListener("change", async function () {
+            const jobId = this.value;
 
-        if (!Array.isArray(data)) return;
+            if (!jobId) {
+                await loadInitialResumes();
+                return;
+            }
 
-        renderTable(data);
+            await rankResumes(jobId);
+        });
 
-    } catch (err) {
-        console.error("Error loading candidates:", err);
+    } catch (error) {
+        console.error("Failed to load jobs:", error);
     }
 }
+
+
+// ===============================
+// DEFAULT RESUME LOAD
+// ===============================
+
+async function loadInitialResumes() {
+
+    const res = await fetch("http://127.0.0.1:8000/resumes/");
+    const data = await res.json();
+
+    renderTable(
+        data.map((r, index) => ({
+            rank: index + 1,
+            resume_id: r.id,
+            filename: r.filename,
+            match_score: 0
+        }))
+    );
+}
+
+
+// ===============================
+// RANKING API
+// ===============================
+
+async function rankResumes(jobId) {
+
+    const res = await fetch("http://127.0.0.1:8000/ats/rank-resumes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            job_id: parseInt(jobId),
+            top_n: 10
+        })
+    });
+
+    const ranked = await res.json();
+    renderTable(ranked);
+}
+
+
+// ===============================
+// RENDER TABLE (Exact Lovable Layout)
+// ===============================
 
 function renderTable(data) {
-    const table = document.getElementById("candidateTable");
-    table.innerHTML = "";
 
-    data.forEach(c => {
+    const tableContainer = document.getElementById("candidates-table");
 
-        let badgeClass = "score-low";
-
-        if (c.match_score >= 70) badgeClass = "score-high";
-        else if (c.match_score >= 50) badgeClass = "score-medium";
-
-        table.innerHTML += `
-            <tr>
-                <td>#${c.rank}</td>
-                <td>${c.resume_id}</td>
-                <td>${c.filename}</td>
-                <td>${c.match_score}%</td>
-                <td>
-                    <span class="score-badge ${badgeClass}">
-                        ${getStatus(c.match_score)}
-                    </span>
-                </td>
-            </tr>
+    if (!data || data.length === 0) {
+        tableContainer.innerHTML = `
+            <div class="empty-state">
+                No resumes available.
+            </div>
         `;
-    });
-}
-
-function getStatus(score) {
-    if (score >= 70) return "Excellent";
-    if (score >= 50) return "Good";
-    return "Needs Improvement";
-}
-
-/* Theme */
-function setupTheme() {
-    const toggleBtn = document.getElementById("themeToggle");
-    const saved = localStorage.getItem("theme");
-
-    if (saved === "light") {
-        document.body.classList.add("light-theme");
-        toggleBtn.textContent = "☀️";
+        return;
     }
 
-    toggleBtn.addEventListener("click", () => {
-        document.body.classList.toggle("light-theme");
+    tableContainer.innerHTML = `
+        <table class="rank-table">
+            <thead>
+                <tr>
+                    <th></th>
+                    <th>Rank</th>
+                    <th>Candidate</th>
+                    <th>Skills</th>
+                    <th>Experience</th>
+                    <th>Skill Match</th>
+                    <th>Overall Score</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${data.map(item => {
 
-        if (document.body.classList.contains("light-theme")) {
-            localStorage.setItem("theme", "light");
-            toggleBtn.textContent = "☀️";
-        } else {
-            localStorage.setItem("theme", "dark");
-            toggleBtn.textContent = "🌙";
-        }
-    });
+                    const score = item.match_score || 0;
+
+                    let badgeClass = "";
+                    let badgeText = "";
+
+                    if (score >= 85) {
+                        badgeClass = "badge-excellent";
+                        badgeText = "Excellent";
+                    } else if (score >= 60) {
+                        badgeClass = "badge-good";
+                        badgeText = "Good";
+                    } else {
+                        badgeClass = "badge-fair";
+                        badgeText = "Fair";
+                    }
+
+                    return `
+                        <tr>
+                            <td>
+                                <input type="radio" name="candidate-select">
+                            </td>
+
+                            <td>
+                                <div class="rank-circle">${item.rank}</div>
+                            </td>
+
+                            <td>
+                                <div class="candidate-name">${item.filename}</div>
+                                <div class="candidate-email">Uploaded Resume</div>
+                            </td>
+
+                            <td>
+                                <div class="skills-row">
+                                    <span class="skill-pill">Python</span>
+                                    <span class="skill-pill">ML</span>
+                                    <span class="skill-pill more">+2</span>
+                                </div>
+                            </td>
+
+                            <td>--</td>
+
+                            <td>
+                                <div class="progress-container">
+                                    <div class="progress-track">
+                                        <div class="progress-fill" style="width:${score}%"></div>
+                                    </div>
+                                    <span class="progress-value">${score}%</span>
+                                </div>
+                            </td>
+
+                            <td>
+                                <div class="overall-container">
+                                    <span class="overall-score">${score}%</span>
+                                    <span class="score-badge ${badgeClass}">
+                                        ${badgeText}
+                                    </span>
+                                </div>
+                            </td>
+
+                            <td class="action-icons">
+                                <i data-lucide="file-text"
+                                   onclick="openResumeDetail(${item.resume_id})"></i>
+                                <i data-lucide="eye"
+                                   onclick="openSkillAnalysis(${item.resume_id}, ${score})"></i>
+                            </td>
+                        </tr>
+                    `;
+                }).join("")}
+            </tbody>
+        </table>
+    `;
+
+    if (window.lucide) {
+        lucide.createIcons();
+    }
+}
+
+
+// ===============================
+// SKILL MODAL
+// ===============================
+
+function openSkillAnalysis(resumeId, score) {
+
+    const modal = document.createElement("div");
+    modal.className = "analysis-modal";
+
+    modal.innerHTML = `
+        <div class="analysis-card">
+            <div class="modal-header">
+                <h2>Skill Match Analysis</h2>
+                <span class="close-btn"
+                      onclick="this.closest('.analysis-modal').remove()">×</span>
+            </div>
+
+            <div class="analysis-body">
+                <div class="analysis-score">${score}%</div>
+
+                <div class="progress-track">
+                    <div class="progress-fill" style="width:${score}%"></div>
+                </div>
+
+                <p>Matched skills calculated from job description comparison.</p>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(modal);
 }

@@ -15,10 +15,7 @@ function loadUploadPage() {
 
     let selectedFile = null;
 
-    // ==============================
     // OPEN FILE PICKER
-    // ==============================
-
     browseBtn.addEventListener("click", (e) => {
         e.stopPropagation();
         fileInput.click();
@@ -32,10 +29,7 @@ function loadUploadPage() {
         handleFile(fileInput.files[0]);
     });
 
-    // ==============================
     // DRAG & DROP
-    // ==============================
-
     dropZone.addEventListener("dragover", (e) => {
         e.preventDefault();
         dropZone.style.borderColor = "#6366f1";
@@ -54,10 +48,6 @@ function loadUploadPage() {
         handleFile(e.dataTransfer.files[0]);
     });
 
-    // ==============================
-    // HANDLE FILE
-    // ==============================
-
     function handleFile(file) {
 
         if (!file) return;
@@ -72,10 +62,6 @@ function loadUploadPage() {
         statusDiv.textContent = "";
     }
 
-    // ==============================
-    // REMOVE FILE
-    // ==============================
-
     removeBtn.addEventListener("click", () => {
         selectedFile = null;
         fileInput.value = "";
@@ -83,10 +69,6 @@ function loadUploadPage() {
         uploadBtn.disabled = true;
         statusDiv.textContent = "";
     });
-
-    // ==============================
-    // UPLOAD TO BACKEND
-    // ==============================
 
     uploadBtn.addEventListener("click", async () => {
 
@@ -108,19 +90,21 @@ function loadUploadPage() {
                 }
             );
 
+            const data = await response.json();
+
             if (!response.ok) {
-                throw new Error("Upload failed");
+                throw new Error(data.detail || "Upload failed");
             }
 
             statusDiv.style.color = "green";
-            statusDiv.textContent = "Resume uploaded successfully!";
+            statusDiv.textContent = data.message || "Upload successful";
 
             uploadBtn.textContent = "Upload Resume";
 
         } catch (error) {
 
             statusDiv.style.color = "red";
-            statusDiv.textContent = "Upload failed. Try again.";
+            statusDiv.textContent = error.message;
 
             uploadBtn.textContent = "Upload Resume";
             uploadBtn.disabled = false;

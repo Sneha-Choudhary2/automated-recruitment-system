@@ -1147,3 +1147,330 @@ input:focus, textarea:focus {
     justify-content: center;
     margin: 0 auto 10px auto;
 }
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.subtext {
+  color: #6b7280;
+  font-size: 14px;
+}
+
+.filters-row {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.search-input {
+  flex: 1;
+  padding: 10px 14px;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+}
+
+.dropdown {
+  padding: 10px;
+  border-radius: 10px;
+  border: 1px solid #e5e7eb;
+}
+
+.card {
+  background: white;
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.04);
+}
+
+.rank-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.rank-table th {
+  text-align: left;
+  padding: 12px;
+  font-weight: 600;
+  color: #6b7280;
+  border-bottom: 1px solid #eee;
+}
+
+.rank-table td {
+  padding: 16px 12px;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.rank-table tr:hover {
+  background: #f9fafb;
+}
+
+.rank-circle {
+  background: #f3f4f6;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-weight: bold;
+}
+
+.progress-bar {
+  width: 120px;
+  height: 8px;
+  background: #e5e7eb;
+  border-radius: 6px;
+  overflow: hidden;
+  margin-bottom: 4px;
+}
+
+.progress {
+  height: 100%;
+  background: #3b82f6;
+}
+
+.score-badge {
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.score-badge.good {
+  background: #d1fae5;
+  color: #065f46;
+}
+.score-badge.excellent {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.score-badge.good {
+  background: #e0f2fe;
+  color: #1e3a8a;
+}
+
+.score-badge.fair {
+  background: #fee2e2;
+  color: #991b1b;
+}
+.rank-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.rank-table thead th {
+  text-align: left;
+  font-size: 14px;
+  color: #6b7280;
+  padding: 16px;
+}
+
+.rank-table tbody td {
+  padding: 18px 16px;
+  border-top: 1px solid #f3f4f6;
+  vertical-align: middle;
+}
+
+.rank-table tbody tr:hover {
+  background: #f9fafb;
+  transition: 0.2s ease;
+}
+
+.rank-circle {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: #f3f4f6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+}
+
+.candidate-name {
+  font-weight: 600;
+  font-size: 15px;
+}
+
+.candidate-email {
+  font-size: 13px;
+  color: #6b7280;
+}
+
+.skill-pill {
+  background: #f3f4f6;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  margin-right: 6px;
+}
+
+.skill-pill.more {
+  background: #e5e7eb;
+}
+
+.progress-bar {
+  width: 120px;
+  height: 8px;
+  background: #e5e7eb;
+  border-radius: 6px;
+  overflow: hidden;
+  margin-bottom: 6px;
+}
+
+.progress {
+  height: 100%;
+  background: #2563eb;
+}
+
+.score-text {
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.overall-score {
+  font-weight: 700;
+  margin-right: 10px;
+}
+
+.score-badge {
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.score-badge.excellent {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.score-badge.good {
+  background: #e0f2fe;
+  color: #1e3a8a;
+}
+
+.score-badge.fair {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.action-icons i {
+  margin-right: 10px;
+  cursor: pointer;
+  color: #6b7280;
+}
+/* Skills container */
+.skills-container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* Skill pill */
+.skill-pill {
+  background: #f3f4f6;
+  color: #111827;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+/* +more pill */
+.skill-pill.more {
+  background: #e5e7eb;
+  font-weight: 600;
+}
+.skills-container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.progress-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.overall-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+/* Skills horizontal layout */
+.skills-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.skill-pill {
+    padding: 4px 10px;
+    border-radius: 999px;
+    background: #eef2ff;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.skill-pill.more {
+    background: #e5e7eb;
+}
+
+/* Progress */
+.progress-container {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.progress-track {
+    width: 100px;
+    height: 6px;
+    background: #e5e7eb;
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.progress-fill {
+    height: 100%;
+    background: #2563eb;
+    border-radius: 10px;
+}
+
+/* Score badge */
+.overall-container {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.score-badge {
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+}
+
+.badge-excellent {
+    background: #dcfce7;
+    color: #16a34a;
+}
+
+.badge-good {
+    background: #dbeafe;
+    color: #2563eb;
+}
+
+.badge-fair {
+    background: #fee2e2;
+    color: #dc2626;
+}

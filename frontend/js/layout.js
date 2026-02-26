@@ -19,7 +19,7 @@ async function loadLayout() {
     // Highlight correct sidebar link
     setActiveSidebar(page);
 
-    // Load correct page
+    // Load page
     await loadPage(`pages/${page}.html`);
 
     if (window.lucide) {
@@ -53,7 +53,9 @@ async function loadPage(pagePath) {
             lucide.createIcons();
         }
 
-        // Run page-specific JS AFTER content injected
+        // ===============================
+        // PAGE-SPECIFIC LOGIC
+        // ===============================
 
         if (pagePath.includes("dashboard.html")) {
             if (typeof loadDashboardData === "function") {
@@ -66,14 +68,20 @@ async function loadPage(pagePath) {
                 loadJobDescriptionPage();
             }
         }
+
         if (pagePath.includes("upload.html")) {
-    if (typeof loadUploadPage === "function") {
-        loadUploadPage();
-    }
-}
+            if (typeof loadUploadPage === "function") {
+                loadUploadPage();
+            }
+        }
+
+        if (pagePath.includes("candidates.html")) {
+            if (typeof loadCandidates === "function") {
+                loadCandidates();
+            }
+        }
 
     }, 100);
-    
 }
 
 // ===============================
