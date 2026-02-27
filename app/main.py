@@ -34,8 +34,7 @@ app.add_middleware(
 )
 
 # ✅ Optional: serve frontend from backend
-app.mount("/frontend", StaticFiles(directory="frontend"), name="frontend")
-
+app.mount("/frontend", StaticFiles(directory="frontend_html"), name="frontend")
 # ✅ Create tables
 Base.metadata.create_all(bind=engine)
 

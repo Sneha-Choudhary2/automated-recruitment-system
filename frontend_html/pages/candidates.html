@@ -1,0 +1,128 @@
+<section class="page">
+  <div class="page-head">
+    <div>
+      <h1 class="page-title">Candidates</h1>
+      <div class="page-sub"><span id="candidates-count">0</span> candidates ranked by match score</div>
+    </div>
+    <button id="export-csv" class="btn btn-outline" type="button">
+      <span class="btn-ico download"></span>
+      Export CSV
+    </button>
+  </div>
+
+  <div class="filters-card">
+    <div class="filters">
+      <div class="search">
+        <span class="search-ico"></span>
+        <input id="candidate-search" type="text" placeholder="Search by name, email, or skills..." />
+      </div>
+
+      <div class="select">
+        <select id="job-select">
+          <option value="">All Jobs</option>
+        </select>
+        <span class="chev"></span>
+      </div>
+
+      <div class="select">
+        <span class="funnel"></span>
+        <select id="score-filter">
+          <option value="">All scores</option>
+          <option value="excellent">Excellent</option>
+          <option value="good">Good</option>
+          <option value="fair">Fair</option>
+          <option value="poor">Poor</option>
+        </select>
+        <span class="chev"></span>
+      </div>
+    </div>
+  </div>
+
+  <div class="table-card">
+    <div class="table-head">
+      <div class="table-title">
+        <span class="table-ico users"></span>
+        Ranked Candidates
+      </div>
+      <div class="table-sub">Click on a candidate to view detailed analysis</div>
+    </div>
+
+    <div class="table-wrap">
+      <table class="table">
+        <thead>
+          <tr>
+            <th style="width:52px;"></th>
+            <th style="width:92px;">Rank</th>
+            <th>Candidate</th>
+            <th style="width:420px;">Skills</th>
+            <th style="width:140px;">Experience</th>
+            <th style="width:160px;">Skill Match</th>
+            <th style="width:160px;">Overall Score</th>
+            <th style="width:140px;">Action</th>
+          </tr>
+        </thead>
+        <tbody id="ranked-candidates-body"></tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<div id="candidate-modal" class="modal" aria-hidden="true">
+  <div class="modal-backdrop" data-close="1"></div>
+  <div class="modal-card">
+    <button class="modal-close" type="button" data-close="1" aria-label="Close">
+      <span class="x"></span>
+    </button>
+
+    <div class="modal-header">
+      <div class="modal-title" id="modal-name">—</div>
+      <div class="modal-sub" id="modal-email">—</div>
+    </div>
+
+    <div class="modal-stats">
+      <div class="stat">
+        <div class="stat-value blue" id="modal-overall">—</div>
+        <div class="stat-label">Overall Score</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value green" id="modal-skillmatch">—</div>
+        <div class="stat-label">Skill Match</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value orange" id="modal-shortprob">—</div>
+        <div class="stat-label">Shortlist Prob.</div>
+      </div>
+    </div>
+
+    <div class="modal-grid">
+      <div class="modal-col">
+        <div class="kv">
+          <div class="kv-title">Experience</div>
+          <div class="kv-value blue" id="modal-exp">—</div>
+        </div>
+
+        <div class="skills-block">
+          <div class="skills-title green">Matched Skills</div>
+          <div class="chips" id="modal-matched"></div>
+        </div>
+
+        <div class="skills-block">
+          <div class="skills-title blue">Extra Skills</div>
+          <div class="chips" id="modal-extra"></div>
+        </div>
+
+        <div class="skills-block">
+          <div class="skills-title">Certifications</div>
+          <div class="chips" id="modal-certs"></div>
+        </div>
+      </div>
+
+      <div class="modal-col">
+        <div class="kv">
+          <div class="kv-title">Education</div>
+          <div class="kv-value muted" id="modal-edu">—</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

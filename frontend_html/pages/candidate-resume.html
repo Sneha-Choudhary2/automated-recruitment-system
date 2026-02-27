@@ -1,0 +1,100 @@
+<!-- pages/candidate-resume.html (UPDATED: adds Delete button, removes missing skills, keeps layout/ids same) -->
+<div class="resume-page">
+  <div class="resume-header">
+    <button class="icon-back" onclick="window.history.back()">
+      <i data-lucide="arrow-left"></i>
+    </button>
+
+    <div class="resume-title">
+      <h1 id="r-name">Candidate</h1>
+      <p class="subtext">Detailed Resume & Analysis</p>
+    </div>
+
+    <div style="display:flex; gap:10px; align-items:center;">
+      <button class="btn-secondary" id="shortlistBtn" type="button">
+        <i data-lucide="star"></i>
+        Shortlist
+      </button>
+
+      <button class="btn-secondary" id="downloadBtn" type="button">
+        <i data-lucide="download"></i>
+        Download Resume
+      </button>
+
+      <!-- NEW: delete resume -->
+      <button class="btn-secondary" id="deleteBtn" type="button" title="Delete Resume">
+        <i data-lucide="trash-2"></i>
+        Delete
+      </button>
+    </div>
+  </div>
+
+  <div class="resume-metric-row">
+    <div class="metric-card greenish">
+      <div class="metric-icon"><i data-lucide="trending-up"></i></div>
+      <div class="metric-big" id="r-overall">--%</div>
+      <div class="metric-small">Overall Score</div>
+    </div>
+
+    <div class="metric-card">
+      <div class="metric-icon success"><i data-lucide="code"></i></div>
+      <div class="metric-big success-text" id="r-skill">--%</div>
+      <div class="metric-small">Skill Match</div>
+    </div>
+
+    <div class="metric-card">
+      <div class="metric-icon info"><i data-lucide="briefcase"></i></div>
+      <div class="metric-big info-text" id="r-exp">--</div>
+      <div class="metric-small">Years Experience</div>
+    </div>
+
+    <div class="metric-card">
+      <div class="metric-icon warn"><i data-lucide="star"></i></div>
+      <div class="metric-big warn-text" id="r-short">--%</div>
+      <div class="metric-small">Shortlist Prob.</div>
+    </div>
+  </div>
+
+  <div class="resume-grid">
+    <div class="resume-left">
+      <div class="card">
+        <div class="card-header"><h3><i data-lucide="mail"></i> Contact Information</h3></div>
+        <div class="card-body" id="r-contact">Loading…</div>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><h3><i data-lucide="graduation-cap"></i> Education</h3></div>
+        <div class="card-body" id="r-edu">--</div>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><h3><i data-lucide="award"></i> Certifications</h3></div>
+        <div class="card-body" id="r-certs">—</div>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><h3><i data-lucide="code"></i> Skills</h3></div>
+        <div class="card-body" id="r-skills">—</div>
+      </div>
+    </div>
+
+    <div class="resume-right">
+      <div class="card">
+        <div class="card-header"><h3><i data-lucide="briefcase"></i> Work Experience</h3></div>
+        <div class="card-body" id="r-work">No detailed work experience available.</div>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><h3><i data-lucide="file-text"></i> Full Resume Content</h3></div>
+        <div class="card-body">
+          <div class="resume-text-box" id="r-text">Loading…</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><h3><i data-lucide="check-circle"></i> Skill Match Analysis</h3></div>
+        <div class="card-body" id="r-analysis">—</div>
+      </div>
+    </div>
+  </div>
+</div>
