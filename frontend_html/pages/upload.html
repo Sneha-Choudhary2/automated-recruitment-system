@@ -5,9 +5,7 @@
         <p>Upload candidate resumes for AI-powered parsing and authenticity analysis</p>
     </div>
 
-    <!-- Resume Upload Card -->
     <div class="upload-card">
-
         <h3>Resume Upload</h3>
         <p class="sub-text">
             Drag and drop resumes or click to browse. Resumes are automatically analyzed for AI-generated content.
@@ -21,13 +19,11 @@
             <h4>Drag and drop resumes</h4>
             <p>or click to browse from your computer</p>
 
-            <button type="button" class="browse-btn">
-                Browse Files
-            </button>
+            <button type="button" class="browse-btn">Browse Files</button>
 
             <p class="limit-text">Maximum file size: 5MB per file</p>
 
-            <input type="file" id="resumeFile" hidden>
+            <input type="file" id="resumeFile" accept=".pdf,.doc,.docx" hidden>
         </div>
 
         <div id="filePreview" class="file-preview" style="display:none;">
@@ -35,7 +31,7 @@
                 <strong id="fileName"></strong>
                 <p id="fileSize"></p>
             </div>
-            <button id="removeFileBtn">✕</button>
+            <button type="button" id="removeFileBtn">✕</button>
         </div>
 
         <button id="uploadBtn" class="primary-upload-btn" disabled>
@@ -43,17 +39,19 @@
         </button>
 
         <div id="uploadStatus" class="upload-status"></div>
-
     </div>
 
-    <!-- Processing Pipeline -->
-    <div class="pipeline-card">
+    <div class="uploaded-resumes-card">
+        <h3>Uploaded Resumes</h3>
+        <p class="sub-text">Resumes available in backend database</p>
+        <div id="resumeList" class="resume-list"></div>
+    </div>
 
+    <div class="pipeline-card">
         <h3>Processing Pipeline</h3>
         <p class="sub-text">What happens after you upload a resume</p>
 
         <div class="pipeline-steps">
-
             <div class="step">
                 <div class="circle">1</div>
                 <h4>Text Extraction</h4>
@@ -83,9 +81,7 @@
                 <h4>ML Prediction</h4>
                 <p>Generate shortlist probability</p>
             </div>
-
         </div>
-
     </div>
 
 </div>

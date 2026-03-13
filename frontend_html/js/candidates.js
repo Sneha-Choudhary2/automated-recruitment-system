@@ -1,4 +1,4 @@
-// candidates.js (FIXED ICONS + FULL PAGE OPEN + DELETE BUTTON)
+// candidates.js
 (() => {
   const API = (window.API_BASE || window.API_BASE_URL || "http://127.0.0.1:8000").replace(/\/$/, "");
 
@@ -31,18 +31,20 @@
     activeJobId: "",
     search: "",
     scoreFilter: "",
+    pageBound: false,
+    focusBound: false,
   };
 
   const storageKey = "recruitai_shortlist_ids";
 
   const fetchJSON = async (url, opts) => {
     const res = await fetch(url, opts);
-    if (!res.ok) throw new Error(res.status + " " + url);
+    if (!res.ok) throw new Error(`${res.status} ${url}`);
     return await res.json();
   };
 
   const setCount = (n) => {
-    if (els.countText) els.countText.textContent = String(n);
+    if (els.countText) els.countText.textContent = String(n ?? 0);
   };
 
   const loadShortlist = () => {
@@ -50,8 +52,12 @@
       const raw = localStorage.getItem(storageKey);
       if (!raw) return;
       const arr = JSON.parse(raw);
-      if (Array.isArray(arr)) arr.forEach((id) => state.shortlist.add(String(id)));
-    } catch {}
+      if (Array.isArray(arr)) {
+        state.shortlist = new Set(arr.map((id) => String(id)));
+      }
+    } catch {
+      state.shortlist = new Set();
+    }
   };
 
   const saveShortlist = () => {
@@ -70,14 +76,23 @@
 
   const normalizeSkills = (x) => {
     if (!x) return [];
-    if (Array.isArray(x)) return x.map(String).filter(Boolean);
-    if (typeof x === "string") return x.split(/[,|\n]/).map((s) => s.trim()).filter(Boolean);
+    if (Array.isArray(x)) return x.map(String).map((s) => s.trim()).filter(Boolean);
+    if (typeof x === "string") {
+      return x
+        .split(/[,|\n]/)
+        .map((s) => s.trim())
+        .filter(Boolean);
+    }
     return [];
   };
 
-  // backend gives extracted_text (important!)
   const getResumeText = (resume) =>
-    resume?.extracted_text || resume?.resume_text || resume?.text || resume?.content || "";
+    resume?.extracted_text ||
+    resume?.resume_text ||
+    resume?.text ||
+    resume?.content ||
+    resume?.parsed_text ||
+    "";
 
   const guessYears = (text) => {
     if (!text) return null;
@@ -93,10 +108,12 @@
     const t = String(text || "");
     const email = (t.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i) || [])[0] || "";
     const edu =
-      (t.match(/\b(Master'?s|Bachelor'?s|B\.?Tech|M\.?Tech|B\.?E|M\.?E|B\.?Sc|M\.?Sc|MBA|Ph\.?D)\b[^\n]{0,40}/i) ||
-        [])[0] || "";
+      (
+        t.match(
+          /\b(Master'?s|Bachelor'?s|B\.?Tech|M\.?Tech|B\.?E|M\.?E|B\.?Sc|M\.?Sc|MBA|Ph\.?D)\b[^\n]{0,40}/i
+        ) || []
+      )[0] || "";
     const years = guessYears(t);
-
     return { email, edu, years };
   };
 
@@ -110,17 +127,19 @@
 
   const chipHtml = (txt, kind) => {
     const cls =
-      kind === "green" ? "chip chip-green" : kind === "blue" ? "chip chip-blue" : "chip chip-gray";
+      kind === "green"
+        ? "chip chip-green"
+        : kind === "blue"
+          ? "chip chip-blue"
+          : "chip chip-gray";
     return `<span class="${cls}">${escapeHtml(txt)}</span>`;
   };
 
-  // ✅ IMPORTANT: backend returns array for /ats/rank-resumes
   const getRanked = async (jobId) => {
-    const payload = { job_id: Number(jobId) };
     const res = await fetch(API + "/ats/rank-resumes", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
+      body: JSON.stringify({ job_id: Number(jobId) }),
     });
     if (!res.ok) throw new Error("rank failed");
     const data = await res.json();
@@ -133,11 +152,16 @@
   const loadJobs = async () => {
     const jobs = await fetchJSON(API + "/jobs/");
     state.jobs = Array.isArray(jobs) ? jobs : [];
+
     if (!els.jobSelect) return;
 
     els.jobSelect.innerHTML =
       `<option value="">All Jobs</option>` +
-      state.jobs.map((j) => `<option value="${j.id}">${escapeHtml(j.title || "Job " + j.id)}</option>`).join("");
+      state.jobs
+        .map((j) => `<option value="${j.id}">${escapeHtml(j.title || "Job " + j.id)}</option>`)
+        .join("");
+
+    els.jobSelect.value = state.activeJobId || "";
   };
 
   const loadResumes = async () => {
@@ -145,7 +169,6 @@
     state.resumes = Array.isArray(resumes) ? resumes : [];
   };
 
-  // ✅ adapt to your backend fields: match_score + similarity_score + extracted_text
   const buildCandidatesFromRanked = (ranked) => {
     const out = [];
     const items = Array.isArray(ranked) ? ranked : [];
@@ -159,23 +182,28 @@
         r.name ||
         resume?.name ||
         resume?.candidate_name ||
-        r.filename ||
         resume?.filename ||
         resume?.file_name ||
-        "—";
+        r.filename ||
+        `Candidate ${resumeId ?? i + 1}`;
 
       const resumeText = getResumeText(resume);
       const parsed = extractFromResumeText(resumeText);
 
-      // you don’t have matched_skills from API right now → we display simple top keywords if you want,
-      // but keep existing behavior: show skills if present else show "—"
-      const matched = normalizeSkills(r.matched_skills || r.matchedSkills || r.skills_matched || []);
-      const extra = normalizeSkills(r.extra_skills || r.extraSkills || r.additional_skills || []);
+      const matched = normalizeSkills(
+        r.matched_skills || r.matchedSkills || r.skills_matched || resume?.skills || []
+      );
+      const extra = normalizeSkills(
+        r.extra_skills || r.extraSkills || r.additional_skills || []
+      );
 
       const overall = Number(r.match_score ?? r.overall_score ?? r.score ?? 0);
-      const skillMatch = Number(r.similarity_score ?? r.skill_match ?? 0); // ✅ USE similarity_score
-
-      const expYears = parsed.years || null;
+      const skillMatch = Number(r.similarity_score ?? r.skill_match ?? 0);
+      const expYears =
+        resume?.years_of_experience ||
+        resume?.experience_years ||
+        parsed.years ||
+        null;
 
       out.push({
         id: String(resumeId ?? i + 1),
@@ -187,8 +215,56 @@
         matched_skills: matched,
         extra_skills: extra,
         certifications: normalizeSkills(r.certifications || resume?.certifications || []),
-        skill_match: isFinite(skillMatch) ? skillMatch : 0,
-        overall_score: isFinite(overall) ? overall : 0,
+        skill_match: Number.isFinite(skillMatch) ? skillMatch : 0,
+        overall_score: Number.isFinite(overall) ? overall : 0,
+        source: "ranked",
+      });
+    }
+
+    return out;
+  };
+
+  const buildCandidatesFromAllResumes = () => {
+    const out = [];
+
+    for (let i = 0; i < state.resumes.length; i++) {
+      const resume = state.resumes[i] || {};
+      const resumeText = getResumeText(resume);
+      const parsed = extractFromResumeText(resumeText);
+
+      const name =
+        resume?.name ||
+        resume?.candidate_name ||
+        resume?.filename ||
+        resume?.file_name ||
+        `Candidate ${resume?.id ?? i + 1}`;
+
+      const matched = normalizeSkills(
+        resume?.skills ||
+        resume?.matched_skills ||
+        resume?.parsed_skills ||
+        []
+      );
+
+      const expYears =
+        resume?.years_of_experience ||
+        resume?.experience_years ||
+        parsed.years ||
+        null;
+
+      out.push({
+        id: String(resume?.id ?? i + 1),
+        rank: i + 1,
+        name: String(name || "—"),
+        email: String(resume?.email || parsed.email || "—"),
+        education: String(resume?.education || parsed.edu || "—"),
+        experience: expYears ? `${expYears} years` : "—",
+        matched_skills: matched,
+        extra_skills: [],
+        certifications: normalizeSkills(resume?.certifications || []),
+        skill_match: 0,
+        overall_score: 0,
+        source: "all",
       });
     }
 
@@ -196,18 +272,26 @@
   };
 
   const applyFilters = (list) => {
-    const q = state.search.trim().toLowerCase();
-    const score = state.scoreFilter;
+    const q = (state.search || "").trim().toLowerCase();
+    const score = state.scoreFilter || "";
 
     return (list || []).filter((c) => {
       if (q) {
-        const hay = [c.name, c.email, ...(c.matched_skills || []), ...(c.extra_skills || [])]
+        const hay = [
+          c.name,
+          c.email,
+          c.education,
+          c.experience,
+          ...(c.matched_skills || []),
+          ...(c.extra_skills || []),
+        ]
           .join(" ")
           .toLowerCase();
+
         if (!hay.includes(q)) return false;
       }
 
-      if (score) {
+      if (score && c.source === "ranked") {
         const s = scoreLabel(c.overall_score).c;
         if (s !== score) return false;
       }
@@ -216,13 +300,10 @@
     });
   };
 
-  // ✅ FILE icon opens full resume page
   const openFullPage = (id) => {
-    const url = `index.html?page=candidate-resume&resume_id=${encodeURIComponent(id)}`;
-    window.location.href = url;
+    window.location.href = `index.html?page=candidate-resume&resume_id=${encodeURIComponent(id)}`;
   };
 
-  // ✅ delete resume (best-effort endpoints)
   const deleteResume = async (id, name) => {
     if (!confirm(`Delete "${name || "this resume"}"?`)) return;
 
@@ -233,6 +314,7 @@
     ];
 
     let ok = false;
+
     for (const ep of endpoints) {
       try {
         const res = await fetch(ep.url, {
@@ -251,13 +333,12 @@
       return;
     }
 
-    // remove from shortlist
     state.shortlist.delete(String(id));
     saveShortlist();
+    localStorage.setItem("resume_updated", Date.now().toString());
 
-    // refresh list
     await loadResumes();
-    await loadForJob(state.activeJobId || state.jobs[0]?.id || "");
+    await loadForJob(state.activeJobId);
   };
 
   const createRow = (c) => {
@@ -265,21 +346,30 @@
     const restCount = Math.max(0, (c.matched_skills || []).length - topSkills.length);
     const skillsHtml =
       topSkills.map((s) => `<span class="chip">${escapeHtml(s)}</span>`).join("") +
-      (restCount ? `<button class="chip more" type="button" data-action="skills" data-id="${c.id}">+${restCount}</button>` : "");
+      (restCount
+        ? `<button class="chip more" type="button" data-action="skills" data-id="${c.id}">+${restCount}</button>`
+        : "");
 
     const overall = Math.round(Number(c.overall_score || 0));
     const sm = Math.round(Number(c.skill_match || 0));
+    const isRanked = c.source === "ranked";
+
     const rankCls =
-      c.rank === 1 ? "rank-pill gold" : c.rank === 2 ? "rank-pill silver" : c.rank === 3 ? "rank-pill bronze" : "rank-pill";
+      c.rank === 1
+        ? "rank-pill gold"
+        : c.rank === 2
+          ? "rank-pill silver"
+          : c.rank === 3
+            ? "rank-pill bronze"
+            : "rank-pill";
 
     const tag = scoreLabel(overall);
     const starred = state.shortlist.has(String(c.id)) ? " starred" : "";
 
-    // ✅ LUCIDE ICONS (these will render properly after lucide.createIcons())
     return `
       <tr data-row="${c.id}">
         <td><span class="radio"></span></td>
-        <td><div class="${rankCls}">${c.rank}</div></td>
+        <td>${isRanked ? `<div class="${rankCls}">${c.rank}</div>` : `<div class="rank-pill">—</div>`}</td>
         <td>
           <div class="cand-name">${escapeHtml(c.name)}</div>
           <div class="cand-email">${escapeHtml(c.email)}</div>
@@ -289,16 +379,28 @@
         </td>
         <td>${escapeHtml(c.experience || "—")}</td>
         <td>
-          <div class="skillbar">
-            <div class="bar"><div class="fill" style="width:${Math.max(0, Math.min(100, sm))}%;"></div></div>
-            <div class="pct">${sm}%</div>
-          </div>
+          ${
+            isRanked
+              ? `
+                <div class="skillbar">
+                  <div class="bar"><div class="fill" style="width:${Math.max(0, Math.min(100, sm))}%;"></div></div>
+                  <div class="pct">${sm}%</div>
+                </div>
+              `
+              : `<span class="muted">—</span>`
+          }
         </td>
         <td>
-          <div class="score">
-            <div class="score-val" style="color:${overall>=85?"#16a34a":overall>=70?"#f59e0b":overall>=50?"#ef4444":"#ef4444"}">${overall}%</div>
-            <span class="score-tag ${tag.c}">${tag.t}</span>
-          </div>
+          ${
+            isRanked
+              ? `
+                <div class="score">
+                  <div class="score-val" style="color:${overall >= 85 ? "#16a34a" : overall >= 70 ? "#f59e0b" : "#ef4444"}">${overall}%</div>
+                  <span class="score-tag ${tag.c}">${tag.t}</span>
+                </div>
+              `
+              : `<span class="muted">—</span>`
+          }
         </td>
         <td>
           <div class="actions">
@@ -341,36 +443,51 @@
     setCount(filtered.length);
     syncStars();
 
-    // ✅ IMPORTANT: render lucide icons after HTML injection
     if (window.lucide) lucide.createIcons();
   };
 
   const openModal = (c) => {
+    if (!els.modal) return;
+
     els.modal.setAttribute("aria-hidden", "false");
 
-    els.modalName.textContent = c.name || "—";
-    els.modalEmail.textContent = c.email || "—";
+    if (els.modalName) els.modalName.textContent = c.name || "—";
+    if (els.modalEmail) els.modalEmail.textContent = c.email || "—";
+    if (els.modalOverall) els.modalOverall.textContent = c.source === "ranked" ? `${Math.round(Number(c.overall_score || 0))}%` : "—";
+    if (els.modalSkill) els.modalSkill.textContent = c.source === "ranked" ? `${Math.round(Number(c.skill_match || 0))}%` : "—";
 
-    els.modalOverall.textContent = `${Math.round(Number(c.overall_score || 0))}%`;
-    els.modalSkill.textContent = `${Math.round(Number(c.skill_match || 0))}%`;
+    const base = Number(c.overall_score || 0) * 0.6 + Number(c.skill_match || 0) * 0.4;
 
-    // you don’t have shortlist_prob from API, so show computed (same as full page)
-    const base = (Number(c.overall_score || 0) * 0.6) + (Number(c.skill_match || 0) * 0.4);
-    els.modalShort.textContent = `${Math.max(0, Math.min(100, Math.round(base)))}%`;
-
-    els.modalExp.textContent = c.experience || "—";
-    els.modalEdu.textContent = c.education || "—";
+    if (els.modalShort) els.modalShort.textContent = c.source === "ranked" ? `${Math.max(0, Math.min(100, Math.round(base)))}%` : "—";
+    if (els.modalExp) els.modalExp.textContent = c.experience || "—";
+    if (els.modalEdu) els.modalEdu.textContent = c.education || "—";
 
     const matched = (c.matched_skills || []).slice(0, 12);
     const extra = (c.extra_skills || []).slice(0, 12);
     const certs = (c.certifications || []).slice(0, 10);
 
-    els.modalMatched.innerHTML = matched.length ? matched.map((s) => chipHtml(s, "green")).join("") : `<span class="muted">—</span>`;
-    els.modalExtra.innerHTML = extra.length ? extra.map((s) => chipHtml(s, "blue")).join("") : `<span class="muted">—</span>`;
-    els.modalCerts.innerHTML = certs.length ? certs.map((s) => chipHtml(s, "gray")).join("") : `<span class="muted">—</span>`;
+    if (els.modalMatched) {
+      els.modalMatched.innerHTML = matched.length
+        ? matched.map((s) => chipHtml(s, "green")).join("")
+        : `<span class="muted">—</span>`;
+    }
+
+    if (els.modalExtra) {
+      els.modalExtra.innerHTML = extra.length
+        ? extra.map((s) => chipHtml(s, "blue")).join("")
+        : `<span class="muted">—</span>`;
+    }
+
+    if (els.modalCerts) {
+      els.modalCerts.innerHTML = certs.length
+        ? certs.map((s) => chipHtml(s, "gray")).join("")
+        : `<span class="muted">—</span>`;
+    }
   };
 
-  const closeModal = () => els.modal.setAttribute("aria-hidden", "true");
+  const closeModal = () => {
+    if (els.modal) els.modal.setAttribute("aria-hidden", "true");
+  };
 
   const toggleStar = (id) => {
     const sid = String(id);
@@ -388,28 +505,38 @@
     const id = btn.getAttribute("data-id");
     if (!id) return;
 
-    if (action === "file") return openFullPage(id);
-    if (action === "eye") {
-      const c = state.byId.get(String(id));
-      if (c) openModal(c);
+    if (action === "file") {
+      openFullPage(id);
       return;
     }
-    if (action === "star") return toggleStar(id);
-    if (action === "skills") {
-      const c = state.byId.get(String(id));
-      if (c) openModal(c);
+
+    if (action === "star") {
+      toggleStar(id);
       return;
     }
+
     if (action === "delete") {
       const c = state.byId.get(String(id));
-      return deleteResume(id, c?.name || "");
+      await deleteResume(id, c?.name || "");
+      return;
+    }
+
+    if (action === "eye" || action === "skills") {
+      const c = state.byId.get(String(id));
+      if (c) openModal(c);
     }
   };
 
   const loadForJob = async (jobId) => {
     state.activeJobId = String(jobId || "");
-    const useJobId = state.activeJobId || String(state.jobs?.[0]?.id || "");
-    const ranked = useJobId ? await getRanked(useJobId) : [];
+
+    if (!state.activeJobId) {
+      state.candidates = buildCandidatesFromAllResumes();
+      renderTable();
+      return;
+    }
+
+    const ranked = await getRanked(state.activeJobId);
     state.candidates = buildCandidatesFromRanked(ranked);
     renderTable();
   };
@@ -437,7 +564,18 @@
 
   const exportCSV = () => {
     const rows = applyFilters(state.candidates);
-    const header = ["Rank","Name","Email","Experience","Education","Skill Match","Overall Score","Matched Skills","Extra Skills","Shortlisted"];
+    const header = [
+      "Rank",
+      "Name",
+      "Email",
+      "Experience",
+      "Education",
+      "Skill Match",
+      "Overall Score",
+      "Matched Skills",
+      "Extra Skills",
+      "Shortlisted",
+    ];
 
     const esc = (v) => {
       const s = String(v ?? "");
@@ -446,19 +584,22 @@
     };
 
     const lines = [header.join(",")];
+
     for (const c of rows) {
-      lines.push([
-        c.rank,
-        c.name,
-        c.email,
-        c.experience,
-        c.education,
-        Math.round(Number(c.skill_match || 0)) + "%",
-        Math.round(Number(c.overall_score || 0)) + "%",
-        (c.matched_skills || []).join(" | "),
-        (c.extra_skills || []).join(" | "),
-        state.shortlist.has(String(c.id)) ? "Yes" : "No",
-      ].map(esc).join(","));
+      lines.push(
+        [
+          c.source === "ranked" ? c.rank : "",
+          c.name,
+          c.email,
+          c.experience,
+          c.education,
+          c.source === "ranked" ? Math.round(Number(c.skill_match || 0)) + "%" : "",
+          c.source === "ranked" ? Math.round(Number(c.overall_score || 0)) + "%" : "",
+          (c.matched_skills || []).join(" | "),
+          (c.extra_skills || []).join(" | "),
+          state.shortlist.has(String(c.id)) ? "Yes" : "No",
+        ].map(esc).join(",")
+      );
     }
 
     const blob = new Blob([lines.join("\n")], { type: "text/csv;charset=utf-8" });
@@ -472,18 +613,22 @@
     URL.revokeObjectURL(url);
   };
 
-  const bind = () => {
+  const bindPageEvents = () => {
+    if (state.pageBound) return;
+    state.pageBound = true;
+
     els.jobSelect?.addEventListener("change", async () => {
       try {
         await loadForJob(els.jobSelect.value);
-      } catch {
+      } catch (error) {
+        console.error("Candidates job filter failed:", error);
         state.candidates = [];
         renderTable();
       }
     });
 
     els.scoreSelect?.addEventListener("change", () => {
-      state.scoreFilter = els.scoreSelect.value;
+      state.scoreFilter = els.scoreSelect.value || "";
       renderTable();
     });
 
@@ -496,7 +641,9 @@
     els.exportBtn?.addEventListener("click", exportCSV);
 
     document.addEventListener("keydown", (e) => {
-      if (e.key === "Escape" && els.modal?.getAttribute("aria-hidden") === "false") closeModal();
+      if (e.key === "Escape" && els.modal?.getAttribute("aria-hidden") === "false") {
+        closeModal();
+      }
     });
 
     els.modal?.addEventListener("click", (e) => {
@@ -505,29 +652,65 @@
     });
   };
 
+  const bindFocusRefresh = () => {
+    if (state.focusBound) return;
+    state.focusBound = true;
+
+    window.addEventListener("focus", async () => {
+      const updated = localStorage.getItem("resume_updated");
+      if (!updated) return;
+
+      localStorage.removeItem("resume_updated");
+
+      try {
+        await loadResumes();
+        await loadJobs();
+
+        if (els.jobSelect) {
+          els.jobSelect.value = state.activeJobId || "";
+        }
+
+        await loadForJob(state.activeJobId);
+      } catch (error) {
+        console.error("Candidates refresh failed:", error);
+      }
+    });
+  };
+
   const boot = async () => {
     initEls();
+
+    if (!els.tbody) {
+      console.error("Candidates page HTML not loaded yet.");
+      return;
+    }
+
     loadShortlist();
-    bind();
+    state.pageBound = false;
+    bindPageEvents();
+    bindFocusRefresh();
+
+    state.search = "";
+    state.scoreFilter = "";
+    state.activeJobId = "";
+
+    if (els.searchInput) els.searchInput.value = "";
+    if (els.scoreSelect) els.scoreSelect.value = "";
+    if (els.jobSelect) els.jobSelect.value = "";
 
     await loadJobs();
     await loadResumes();
 
-    const initialJob = els.jobSelect?.value || (state.jobs[0]?.id || "");
+    if (els.jobSelect) els.jobSelect.value = "";
+
     try {
-      await loadForJob(initialJob);
-    } catch {
+      await loadForJob("");
+    } catch (error) {
+      console.error("Candidates boot failed:", error);
       state.candidates = [];
       renderTable();
     }
   };
 
-  // ✅ expose for layout.js SPA handler
   window.loadCandidates = boot;
-
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", boot);
-  } else {
-    boot();
-  }
 })();

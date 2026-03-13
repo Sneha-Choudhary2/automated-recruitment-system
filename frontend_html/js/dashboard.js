@@ -61,65 +61,83 @@ async function loadDashboardData() {
 
 
 async function loadRanking(jobId) {
-
     const totalEl = document.getElementById("totalCandidates");
     const avgEl = document.getElementById("avgMatch");
     const shortEl = document.getElementById("shortlisted");
     const container = document.getElementById("topCandidatesList");
 
+    if (!container) return;
     container.innerHTML = "Loading...";
 
-    const response = await fetch("http://127.0.0.1:8000/ats/rank-resumes", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+    try {
+        const ranked = await apiPost("/ats/rank-resumes", {
             job_id: parseInt(jobId),
             top_n: 5
-        })
-    });
+        });
 
-    const data = await response.json();
+        const resumes = await apiGet("/resumes/");
 
-    let totalScore = 0;
-    let shortlisted = 0;
+        let totalScore = 0;
+        let shortlisted = 0;
 
-    data.forEach(item => {
-        totalScore += item.match_score;
-        if (item.match_score >= 50) shortlisted++;
-    });
+        container.innerHTML = "";
 
-    const avgScore = data.length
-        ? (totalScore / data.length).toFixed(1)
-        : 0;
+        ranked.forEach(candidate => {
+            totalScore += Number(candidate.match_score || 0);
+            if (Number(candidate.match_score || 0) >= 50) shortlisted++;
 
-    totalEl.textContent = data.length;
-    avgEl.textContent = avgScore + "%";
-    shortEl.textContent = shortlisted;
+            const resume = resumes.find(r => Number(r.id) === Number(candidate.resume_id));
 
-    container.innerHTML = "";
+            const rawName =
+                resume?.candidate_name ||
+                candidate.candidate_name ||
+                candidate.filename ||
+                "Candidate";
 
-    data.forEach(candidate => {
+            const name = String(rawName)
+                .replace(/\.(pdf|docx?|txt)$/i, "")
+                .replace(/[_\-]+/g, " ")
+                .trim();
 
-        const row = document.createElement("div");
-        row.className = "candidate-row";
+            let skills = "Skills detected";
+            if (Array.isArray(candidate.matched_skills) && candidate.matched_skills.length) {
+                skills = candidate.matched_skills.slice(0, 3).join(", ");
+            } else if (Array.isArray(resume?.skills) && resume.skills.length) {
+                skills = resume.skills.slice(0, 3).join(", ");
+            }
 
-        row.innerHTML = `
-            <div class="rank-circle">#${candidate.rank}</div>
-            <div class="candidate-details">
-                <div class="candidate-name">${candidate.filename}</div>
-                <div class="candidate-sub">Match evaluation result</div>
-            </div>
-            <div class="candidate-score">
-                <div class="score-value">${candidate.match_score}%</div>
-                <div class="score-label">Match Score</div>
-            </div>
-        `;
+            const row = document.createElement("div");
+            row.className = "candidate-row";
 
-        container.appendChild(row);
-    });
+            row.innerHTML = `
+                <div class="rank-circle">#${candidate.rank}</div>
+                <div class="candidate-details">
+                    <div class="candidate-name">${name}</div>
+                    <div class="candidate-sub">${skills}</div>
+                </div>
+                <div class="candidate-score">
+                    <div class="score-value">${Number(candidate.match_score || 0).toFixed(1)}%</div>
+                    <div class="score-label">Match Score</div>
+                </div>
+            `;
+
+            container.appendChild(row);
+        });
+
+        const avgScore = ranked.length ? (totalScore / ranked.length).toFixed(1) : "0.0";
+
+        if (totalEl) totalEl.textContent = ranked.length;
+        if (avgEl) avgEl.textContent = avgScore + "%";
+        if (shortEl) shortEl.textContent = shortlisted;
+
+        if (!ranked.length) {
+            container.innerHTML = "<p>No ranked candidates found.</p>";
+        }
+    } catch (error) {
+        console.error("Ranking error:", error);
+        container.innerHTML = "<p>Error loading candidates.</p>";
+    }
 }
-
-
 async function loadActiveJobs() {
 
     const container = document.getElementById("activeJobsList");
@@ -159,3 +177,13 @@ async function loadActiveJobs() {
         container.appendChild(jobCard);
     });
 }
+window.addEventListener("focus", async () => {
+    const dropdown = document.getElementById("jobDropdown");
+    if (!dropdown) return;
+
+    const jobId = dropdown.value;
+    if (jobId) {
+        await loadRanking(jobId);
+        await loadActiveJobs();
+    }
+});

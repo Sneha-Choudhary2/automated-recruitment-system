@@ -82,7 +82,36 @@ def get_resumes(db: Session = Depends(get_db)):
             "filename": r.filename,
             "file_path": r.file_path,
             "extracted_text": r.extracted_text,
-            "uploaded_at": r.uploaded_at,  # ✅ correct column name
+            "uploaded_at": r.uploaded_at,
         }
         for r in resumes
     ]
+
+
+# ===============================
+# DELETE RESUME
+# ===============================
+
+@router.delete("/{resume_id}")
+def delete_resume(resume_id: int, db: Session = Depends(get_db)):
+
+    resume = db.query(Resume).filter(Resume.id == resume_id).first()
+
+    if not resume:
+        raise HTTPException(
+            status_code=404,
+            detail="Resume not found"
+        )
+
+    # delete file from disk
+    if resume.file_path and os.path.exists(resume.file_path):
+        os.remove(resume.file_path)
+
+    # delete from database
+    db.delete(resume)
+    db.commit()
+
+    return {
+        "message": "Resume deleted successfully",
+        "deleted_resume_id": resume_id
+    }
