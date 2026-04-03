@@ -1,384 +1,750 @@
-// js/candidate-resume.js (UPDATED)
-// - Uses API_BASE from api.js
-// - Stops guessing broken endpoints first; uses /resumes/ list + common detail patterns
-// - Removes missing skills UI entirely
-// - Adds Delete resume button (best-effort endpoints)
-// - Keeps all existing IDs and UI structure intact
+// candidates.js
+(() => {
+  const API = (window.API_BASE || window.API_BASE_URL || "http://127.0.0.1:8000").replace(/\/$/, "");
 
-function extractSection(text, titles) {
-  const t = String(text || "");
-  if (!t.trim()) return "";
-  const lines = t.split(/\r?\n/);
-  const up = lines.map((l) => l.trim());
+  const els = {
+    jobSelect: null,
+    scoreSelect: null,
+    searchInput: null,
+    tbody: null,
+    countText: null,
+    exportBtn: null,
+    modal: null,
+    modalName: null,
+    modalEmail: null,
+    modalOverall: null,
+    modalSkill: null,
+    modalShort: null,
+    modalExp: null,
+    modalEdu: null,
+    modalMatched: null,
+    modalExtra: null,
+    modalCerts: null,
+  };
 
-  const idx = up.findIndex((l) =>
-    titles.some((h) => l.toLowerCase() === h.toLowerCase() || l.toLowerCase().startsWith(h.toLowerCase()))
-  );
-  if (idx < 0) return "";
+  const state = {
+    jobs: [],
+    resumes: [],
+    candidates: [],
+    byId: new Map(),
+    shortlist: new Set(),
+    activeJobId: "",
+    search: "",
+    scoreFilter: "",
+    pageBound: false,
+    focusBound: false,
+  };
 
-  const out = [];
-  for (let i = idx + 1; i < up.length; i++) {
-    const line = up[i];
-    if (!line) continue;
+  const storageKey = "recruitai_shortlist_ids";
+  const detailCacheKey = "recruitai_candidate_detail_cache";
 
-    const isHeading =
-      /^[A-Z][A-Z \-\/&]{3,}$/.test(line) ||
-      [
-        "education",
-        "work experience",
-        "experience",
-        "skills",
-        "projects",
-        "certifications",
-        "summary",
-        "contact",
-        "technical skills",
-      ].some((h) => line.toLowerCase() === h);
+  const fetchJSON = async (url, opts) => {
+    const res = await fetch(url, opts);
+    if (!res.ok) throw new Error(`${res.status} ${url}`);
+    return await res.json();
+  };
 
-    if (isHeading) break;
-    out.push(lines[i]);
-    if (out.join("\n").length > 1800) break;
-  }
-  return out.join("\n").trim();
-}
+  const setCount = (n) => {
+    if (els.countText) els.countText.textContent = String(n ?? 0);
+  };
 
-function guessEmailPhone(text) {
-  const t = String(text || "");
-  const email = (t.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i) || [])[0] || null;
-  const phone = (t.match(/(\+?\d[\d\s().-]{8,}\d)/) || [])[0] || null;
-  return { email, phone };
-}
-
-function guessYears(text) {
-  const t = String(text || "");
-  const m =
-    t.match(/(\d{1,2})\+?\s*(years|yrs)\s+of\s+experience/i) ||
-    t.match(/(\d{1,2})\+?\s*(years|yrs)\s+experience/i);
-  if (!m) return null;
-  return m[1];
-}
-
-function normalizeSkillArray(v) {
-  if (!v) return [];
-  if (Array.isArray(v)) return v.filter(Boolean).map(String);
-  if (typeof v === "string") {
-    return v
-      .split(/[,\n|]/g)
-      .map((s) => s.trim())
-      .filter(Boolean);
-  }
-  return [];
-}
-
-function escapeHtml(str) {
-  return String(str)
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
-}
-
-async function loadCandidateResumePage() {
-  const API = (window.API_BASE || "http://127.0.0.1:8000").replace(/\/$/, "");
-
-  const params = new URLSearchParams(window.location.search);
-  const resumeId = params.get("resume_id") || params.get("id");
-  if (!resumeId) return;
-
-  const $ = (id) => document.getElementById(id);
-  const safe = (v, d = "--") => (v === undefined || v === null || v === "" ? d : v);
-
-  async function fetchFirstJson(urls) {
-    for (const url of urls) {
-      try {
-        const r = await fetch(url);
-        if (!r.ok) continue;
-        const data = await r.json();
-        if (data) return data;
-      } catch (_) {}
+  const loadShortlist = () => {
+    try {
+      const raw = localStorage.getItem(storageKey);
+      if (!raw) return;
+      const arr = JSON.parse(raw);
+      if (Array.isArray(arr)) {
+        state.shortlist = new Set(arr.map((id) => String(id)));
+      }
+    } catch {
+      state.shortlist = new Set();
     }
+  };
+
+  const saveShortlist = () => {
+    try {
+      localStorage.setItem(storageKey, JSON.stringify(Array.from(state.shortlist)));
+    } catch {}
+  };
+
+  const scoreLabel = (n) => {
+    const v = Number(n || 0);
+    if (v >= 85) return { t: "Excellent", c: "excellent" };
+    if (v >= 70) return { t: "Good", c: "good" };
+    if (v >= 50) return { t: "Fair", c: "fair" };
+    return { t: "Poor", c: "poor" };
+  };
+
+  const normalizeSkills = (x) => {
+    if (!x) return [];
+    if (Array.isArray(x)) return x.map(String).map((s) => s.trim()).filter(Boolean);
+    if (typeof x === "string") {
+      return x
+        .split(/[,|\n]/)
+        .map((s) => s.trim())
+        .filter(Boolean);
+    }
+    return [];
+  };
+
+  const getResumeText = (resume) =>
+    resume?.extracted_text ||
+    resume?.resume_text ||
+    resume?.text ||
+    resume?.content ||
+    resume?.parsed_text ||
+    "";
+
+  const guessYears = (text) => {
+    if (!text) return null;
+    const t = String(text);
+    const m1 = t.match(/(\d+)\s*\+?\s*(?:years|yrs)\b/i);
+    if (m1) return Number(m1[1]);
+    const m2 = t.match(/\b(\d+(?:\.\d+)?)\s*(?:years|yrs)\s+of\s+experience\b/i);
+    if (m2) return Math.round(Number(m2[1]));
     return null;
-  }
+  };
 
-  // 1) Always try to locate from /resumes/ list first (this exists and is stable in your backend)
-  let details = null;
-  try {
-    const list = await (window.apiGet ? window.apiGet("/resumes/") : fetch(API + "/resumes/").then((r) => r.json()));
-    if (Array.isArray(list)) {
-      details =
-        list.find((x) => String(x.id) === String(resumeId)) ||
-        list.find((x) => String(x.resume_id) === String(resumeId)) ||
+  const extractFromResumeText = (text) => {
+    const t = String(text || "");
+    const email = (t.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i) || [])[0] || "";
+    const edu =
+      (
+        t.match(
+          /\b(Master'?s|Bachelor'?s|B\.?Tech|M\.?Tech|B\.?E|M\.?E|B\.?Sc|M\.?Sc|MBA|Ph\.?D)\b[^\n]{0,40}/i
+        ) || []
+      )[0] || "";
+    const years = guessYears(t);
+    return { email, edu, years };
+  };
+
+  const escapeHtml = (s) =>
+    String(s ?? "")
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#039;");
+
+  const chipHtml = (txt, kind) => {
+    const cls =
+      kind === "green"
+        ? "chip chip-green"
+        : kind === "blue"
+          ? "chip chip-blue"
+          : "chip chip-gray";
+    return `<span class="${cls}">${escapeHtml(txt)}</span>`;
+  };
+
+  const getRanked = async (jobId) => {
+    const res = await fetch(API + "/ats/rank-resumes", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ job_id: Number(jobId) }),
+    });
+    if (!res.ok) throw new Error("rank failed");
+    const data = await res.json();
+    if (Array.isArray(data)) return data;
+    if (Array.isArray(data.ranked_resumes)) return data.ranked_resumes;
+    if (Array.isArray(data.results)) return data.results;
+    return [];
+  };
+
+  const loadJobs = async () => {
+    const jobs = await fetchJSON(API + "/jobs/");
+    state.jobs = Array.isArray(jobs) ? jobs : [];
+
+    if (!els.jobSelect) return;
+
+    els.jobSelect.innerHTML =
+      `<option value="">All Jobs</option>` +
+      state.jobs
+        .map((j) => `<option value="${j.id}">${escapeHtml(j.title || "Job " + j.id)}</option>`)
+        .join("");
+
+    els.jobSelect.value = state.activeJobId || "";
+  };
+
+  const loadResumes = async () => {
+    const resumes = await fetchJSON(API + "/resumes/");
+    state.resumes = Array.isArray(resumes) ? resumes : [];
+  };
+
+  const buildCandidatesFromRanked = (ranked) => {
+    const out = [];
+    const items = Array.isArray(ranked) ? ranked : [];
+
+    for (let i = 0; i < items.length; i++) {
+      const r = items[i] || {};
+      const resumeId = r.resume_id ?? r.id ?? r.resumeId;
+      const resume = state.resumes.find((x) => String(x.id) === String(resumeId)) || null;
+
+      const name =
+        r.name ||
+        resume?.name ||
+        resume?.candidate_name ||
+        resume?.filename ||
+        resume?.file_name ||
+        r.filename ||
+        `Candidate ${resumeId ?? i + 1}`;
+
+      const resumeText = getResumeText(resume);
+      const parsed = extractFromResumeText(resumeText);
+
+      const matched = normalizeSkills(
+        r.matched_skills || r.matchedSkills || r.skills_matched || resume?.skills || []
+      );
+      const extra = normalizeSkills(
+        r.extra_skills || r.extraSkills || r.additional_skills || []
+      );
+
+      const overall = Number(r.match_score ?? r.overall_score ?? r.score ?? 0);
+      const skillMatch = Number(r.similarity_score ?? r.skill_match ?? 0);
+      const expYears =
+        resume?.years_of_experience ||
+        resume?.experience_years ||
+        parsed.years ||
         null;
+
+      out.push({
+        id: String(resumeId ?? i + 1),
+        rank: r.rank ?? i + 1,
+        name: String(name || "—"),
+        email: String(r.email || resume?.email || parsed.email || "—"),
+        education: String(r.education || resume?.education || parsed.edu || "—"),
+        experience: expYears ? `${expYears} years` : "—",
+        matched_skills: matched,
+        extra_skills: extra,
+        certifications: normalizeSkills(r.certifications || resume?.certifications || []),
+        skill_match: Number.isFinite(skillMatch) ? skillMatch : 0,
+        overall_score: Number.isFinite(overall) ? overall : 0,
+        source: "ranked",
+
+        filename: resume?.filename || r.filename || name,
+        extracted_text: resume?.extracted_text || "",
+        uploaded_at: resume?.uploaded_at || null,
+        file_path: resume?.file_path || null,
+      });
     }
-  } catch (_) {}
 
-  // 2) If list item is lightweight, try common detail routes (best effort)
-  if (!details || (!details.resume_text && !details.text && !details.content)) {
-    const tries = [
-      `${API}/resumes/${encodeURIComponent(resumeId)}`,
-      `${API}/ats/resumes/${encodeURIComponent(resumeId)}`,
-      `${API}/resume/${encodeURIComponent(resumeId)}`,
+    return out;
+  };
+
+  const buildCandidatesFromAllResumes = () => {
+    const out = [];
+
+    for (let i = 0; i < state.resumes.length; i++) {
+      const resume = state.resumes[i] || {};
+      const resumeText = getResumeText(resume);
+      const parsed = extractFromResumeText(resumeText);
+
+      const name =
+        resume?.name ||
+        resume?.candidate_name ||
+        resume?.filename ||
+        resume?.file_name ||
+        `Candidate ${resume?.id ?? i + 1}`;
+
+      const matched = normalizeSkills(
+        resume?.skills ||
+        resume?.matched_skills ||
+        resume?.parsed_skills ||
+        []
+      );
+
+      const expYears =
+        resume?.years_of_experience ||
+        resume?.experience_years ||
+        parsed.years ||
+        null;
+
+      out.push({
+        id: String(resume?.id ?? i + 1),
+        rank: i + 1,
+        name: String(name || "—"),
+        email: String(resume?.email || parsed.email || "—"),
+        education: String(resume?.education || parsed.edu || "—"),
+        experience: expYears ? `${expYears} years` : "—",
+        matched_skills: matched,
+        extra_skills: [],
+        certifications: normalizeSkills(resume?.certifications || []),
+        skill_match: 0,
+        overall_score: 0,
+        source: "all",
+
+        filename: resume?.filename || name,
+        extracted_text: resume?.extracted_text || "",
+        uploaded_at: resume?.uploaded_at || null,
+        file_path: resume?.file_path || null,
+      });
+    }
+
+    return out;
+  };
+
+  const applyFilters = (list) => {
+    const q = (state.search || "").trim().toLowerCase();
+    const score = state.scoreFilter || "";
+
+    return (list || []).filter((c) => {
+      if (q) {
+        const hay = [
+          c.name,
+          c.email,
+          c.education,
+          c.experience,
+          ...(c.matched_skills || []),
+          ...(c.extra_skills || []),
+        ]
+          .join(" ")
+          .toLowerCase();
+
+        if (!hay.includes(q)) return false;
+      }
+
+      if (score && c.source === "ranked") {
+        const s = scoreLabel(c.overall_score).c;
+        if (s !== score) return false;
+      }
+
+      return true;
+    });
+  };
+
+  const cacheCandidateDetails = (candidate) => {
+    try {
+      const raw = localStorage.getItem(detailCacheKey);
+      const map = raw ? JSON.parse(raw) : {};
+      map[String(candidate.id)] = candidate;
+      localStorage.setItem(detailCacheKey, JSON.stringify(map));
+    } catch {}
+  };
+
+  const openFullPage = (id) => {
+    const candidate = state.byId.get(String(id));
+    if (candidate) cacheCandidateDetails(candidate);
+    window.location.href = `index.html?page=candidate-resume&resume_id=${encodeURIComponent(id)}`;
+  };
+
+  const deleteResume = async (id, name) => {
+    if (!confirm(`Delete "${name || "this resume"}"?`)) return;
+
+    const endpoints = [
+      { method: "DELETE", url: `${API}/resumes/${encodeURIComponent(id)}` },
+      { method: "POST", url: `${API}/resumes/${encodeURIComponent(id)}/delete` },
+      { method: "POST", url: `${API}/ats/resumes/${encodeURIComponent(id)}/delete` },
     ];
-    const found = await fetchFirstJson(tries);
-    if (found) details = found;
-  }
 
-  if (!details) return;
+    let ok = false;
 
-  const name =
-    details.name ||
-    details.candidate_name ||
-    details.filename ||
-    details.file_name ||
-    details.original_filename ||
-    `Resume #${resumeId}`;
-
-  const resumeText = details.resume_text || details.resumeText || details.text || details.raw_text || details.content || "";
-
-  const guessed = guessEmailPhone(resumeText);
-  const email = safe(details.email || guessed.email);
-  const phone = safe(details.phone || guessed.phone);
-
-  const uploadedAt = details.uploadedAt || details.uploaded_at || details.created_at || details.createdAt || null;
-
-  const education = safe(
-    details.education ||
-      details.educationLevel ||
-      details.education_level ||
-      details.highest_education ||
-      extractSection(resumeText, ["EDUCATION"]),
-    "--"
-  );
-
-  const certsArr = details.certifications || details.certs || details.certificates || [];
-  const certs = Array.isArray(certsArr) ? certsArr : normalizeSkillArray(certsArr);
-
-  const matched = normalizeSkillArray(details.matched_skills || details.matchedSkills || details.skills_matched || []);
-  const extra = normalizeSkillArray(details.extra_skills || details.extraSkills || details.additional_skills || []);
-
-  const overallRaw =
-    details.match_score ??
-    details.overallScore ??
-    details.overall_score ??
-    details.similarity ??
-    details.similarity_score ??
-    details.match ??
-    details.score ??
-    null;
-
-  const skillRaw =
-    details.skill_match_score ??
-    details.skillMatchPercentage ??
-    details.skill_match ??
-    details.skill_score ??
-    details.skill_match_pct ??
-    details.skillMatch ??
-    null;
-
-  const overall = overallRaw === null ? null : Number(overallRaw);
-  const skill = skillRaw === null ? null : Number(skillRaw);
-
-  const guessedYears = guessYears(resumeText);
-  const years = safe(details.yearsOfExperience ?? details.years_experience ?? details.experience_years ?? guessedYears ?? "--");
-
-  // Shortlist prob (use backend if present else compute fallback)
-  let shortlist = details.shortlistProbability ?? details.shortlist_prob ?? details.shortlist_probability ?? details.probability ?? null;
-  if (shortlist !== null && shortlist !== undefined && shortlist !== "") {
-    shortlist = Number(shortlist);
-    if (shortlist <= 1) shortlist = shortlist * 100;
-  } else {
-    const base = (Number.isFinite(overall) ? overall : 0) * 0.6 + (Number.isFinite(skill) ? skill : 0) * 0.4;
-    shortlist = Math.max(0, Math.min(100, Math.round(base)));
-  }
-
-  // Fill metrics
-  $("r-name").textContent = safe(name, `Resume #${resumeId}`);
-  $("r-overall").textContent = Number.isFinite(overall) ? `${Math.round(overall)}%` : "--";
-  $("r-skill").textContent = Number.isFinite(skill) ? `${Math.round(skill)}%` : "--";
-  $("r-exp").textContent = years;
-  $("r-short").textContent = `${Math.round(shortlist)}%`;
-
-  // Contact
-  $("r-contact").innerHTML = `
-    <div class="contact-row"><i data-lucide="mail"></i> <span>${escapeHtml(String(email))}</span></div>
-    <div class="contact-row"><i data-lucide="phone"></i> <span>${escapeHtml(String(phone))}</span></div>
-    <div class="contact-row"><i data-lucide="calendar"></i>
-      <span>Uploaded ${uploadedAt ? new Date(uploadedAt).toLocaleDateString() : "--"}</span>
-    </div>
-  `;
-
-  // Left blocks
-  $("r-edu").textContent = safe(education);
-
-  $("r-certs").innerHTML =
-    Array.isArray(certs) && certs.length
-      ? certs.map((c) => `<span class="pill">${escapeHtml(String(c))}</span>`).join(" ")
-      : "—";
-
-  $("r-skills").innerHTML = `
-    <div class="skill-block">
-      <div class="skill-title green">Matched Skills</div>
-      <div class="pill-wrap">
-        ${(Array.isArray(matched) && matched.length ? matched : ["--"])
-          .map((s) => `<span class="pill pill-green">${escapeHtml(String(s))}</span>`)
-          .join("")}
-      </div>
-    </div>
-
-    <div class="skill-block">
-      <div class="skill-title blue">Additional Skills</div>
-      <div class="pill-wrap">
-        ${(Array.isArray(extra) && extra.length ? extra : ["--"])
-          .map((s) => `<span class="pill">${escapeHtml(String(s))}</span>`)
-          .join("")}
-      </div>
-    </div>
-  `;
-
-  // Work + Full text
-  const expSection = safe(
-    details.work_experience || details.experience || details.workExperience || extractSection(resumeText, ["WORK EXPERIENCE", "EXPERIENCE"]),
-    ""
-  );
-
-  const workEl = $("r-work");
-  if (workEl) workEl.textContent = expSection ? expSection : "No detailed work experience available.";
-
-  $("r-text").textContent = resumeText ? resumeText : "Resume text not available from API.";
-
-  // Analysis block
-  const skillPct = Number.isFinite(skill) ? Math.max(0, Math.min(100, skill)) : 0;
-
-  $("r-analysis").innerHTML = `
-    <div class="analysis-line">
-      <div>Overall Skill Match</div>
-      <div class="analysis-val">${Number.isFinite(skill) ? `${Math.round(skill)}%` : "--"}</div>
-    </div>
-    <div class="analysis-bar"><div class="analysis-fill" style="width:${skillPct}%"></div></div>
-
-    <div class="analysis-cards">
-      <div class="mini greenish">
-        <div class="mini-num">${Array.isArray(matched) ? matched.length : 0}</div>
-        <div class="mini-label">Matched Skills</div>
-      </div>
-      <div class="mini bluish">
-        <div class="mini-num">${Array.isArray(extra) ? extra.length : 0}</div>
-        <div class="mini-label">Extra Skills</div>
-      </div>
-      <div class="mini reddish">
-        <div class="mini-num">${escapeHtml(String(years))}</div>
-        <div class="mini-label">Years</div>
-      </div>
-    </div>
-  `;
-
-  // Download
-  const fileUrl = details.file_url || details.resume_url || details.url || details.download_url || details.file || null;
-  const downloadBtn = $("downloadBtn");
-  if (downloadBtn) {
-    downloadBtn.onclick = () => {
-      if (!fileUrl) return alert("Download URL not available from API");
-      const abs = String(fileUrl).startsWith("http") ? String(fileUrl) : API + (String(fileUrl).startsWith("/") ? "" : "/") + String(fileUrl);
-      window.open(abs, "_blank", "noopener,noreferrer");
-    };
-  }
-
-  // Shortlist (uses SAME key as candidates.js)
-  const shortlistBtn = $("shortlistBtn");
-  if (shortlistBtn) {
-    const key = "recruitai_shortlist_ids";
-
-    const getList = () => {
+    for (const ep of endpoints) {
       try {
-        const arr = JSON.parse(localStorage.getItem(key) || "[]");
-        return Array.isArray(arr) ? arr.map(String) : [];
-      } catch {
-        return [];
-      }
-    };
-    const setList = (arr) => localStorage.setItem(key, JSON.stringify(arr));
-
-    const render = () => {
-      const arr = getList();
-      const on = arr.includes(String(resumeId));
-      shortlistBtn.classList.toggle("active", on);
-      shortlistBtn.classList.toggle("starred", on);
-      shortlistBtn.innerHTML = on
-        ? `<i data-lucide="star"></i> Shortlisted`
-        : `<i data-lucide="star"></i> Shortlist`;
-      if (window.lucide) lucide.createIcons();
-    };
-
-    shortlistBtn.onclick = () => {
-      const arr = getList();
-      const id = String(resumeId);
-      const idx = arr.indexOf(id);
-      if (idx >= 0) arr.splice(idx, 1);
-      else arr.push(id);
-      setList(arr);
-      render();
-    };
-
-    render();
-  }
-
-  // Delete resume
-  const deleteBtn = $("deleteBtn");
-  if (deleteBtn) {
-    deleteBtn.onclick = async () => {
-      const label = name ? `Delete "${name}"?` : "Delete this resume?";
-      if (!confirm(label)) return;
-
-      const endpoints = [
-        { method: "DELETE", url: `${API}/resumes/${encodeURIComponent(resumeId)}` },
-        { method: "POST", url: `${API}/resumes/${encodeURIComponent(resumeId)}/delete` },
-        { method: "POST", url: `${API}/ats/resumes/${encodeURIComponent(resumeId)}/delete` },
-      ];
-
-      let ok = false;
-      for (const ep of endpoints) {
-        try {
-          const res = await fetch(ep.url, {
-            method: ep.method,
-            headers: ep.method === "POST" ? { "Content-Type": "application/json" } : undefined,
-          });
-          if (res.ok) {
-            ok = true;
-            break;
-          }
-        } catch (_) {}
-      }
-
-      if (!ok) {
-        alert("Delete API endpoint not found on backend. Add DELETE /resumes/{id} (or a delete route) to enable delete.");
-        return;
-      }
-
-      // remove from shortlist if present
-      try {
-        const raw = localStorage.getItem("recruitai_shortlist_ids");
-        const arr = raw ? JSON.parse(raw) : [];
-        const next = Array.isArray(arr) ? arr.map(String).filter((x) => x !== String(resumeId)) : [];
-        localStorage.setItem("recruitai_shortlist_ids", JSON.stringify(next));
+        const res = await fetch(ep.url, {
+          method: ep.method,
+          headers: ep.method === "POST" ? { "Content-Type": "application/json" } : undefined,
+        });
+        if (res.ok) {
+          ok = true;
+          break;
+        }
       } catch {}
+    }
 
-      // go back
-      window.history.back();
+    if (!ok) {
+      alert("Delete endpoint not found on backend. Add DELETE /resumes/{id} to enable delete.");
+      return;
+    }
+
+    state.shortlist.delete(String(id));
+    saveShortlist();
+    localStorage.setItem("resume_updated", Date.now().toString());
+
+    await loadResumes();
+    await loadForJob(state.activeJobId);
+  };
+
+  const createRow = (c) => {
+    const topSkills = (c.matched_skills || []).slice(0, 3);
+    const restCount = Math.max(0, (c.matched_skills || []).length - topSkills.length);
+    const skillsHtml =
+      topSkills.map((s) => `<span class="chip">${escapeHtml(s)}</span>`).join("") +
+      (restCount
+        ? `<button class="chip more" type="button" data-action="skills" data-id="${c.id}">+${restCount}</button>`
+        : "");
+
+    const overall = Math.round(Number(c.overall_score || 0));
+    const sm = Math.round(Number(c.skill_match || 0));
+    const isRanked = c.source === "ranked";
+
+    const rankCls =
+      c.rank === 1
+        ? "rank-pill gold"
+        : c.rank === 2
+          ? "rank-pill silver"
+          : c.rank === 3
+            ? "rank-pill bronze"
+            : "rank-pill";
+
+    const tag = scoreLabel(overall);
+    const starred = state.shortlist.has(String(c.id)) ? " starred" : "";
+
+    return `
+      <tr data-row="${c.id}">
+        <td><span class="radio"></span></td>
+        <td>${isRanked ? `<div class="${rankCls}">${c.rank}</div>` : `<div class="rank-pill">—</div>`}</td>
+        <td>
+          <div class="cand-name">${escapeHtml(c.name)}</div>
+          <div class="cand-email">${escapeHtml(c.email)}</div>
+        </td>
+        <td>
+          <div class="chips-row">${skillsHtml || `<span class="muted">—</span>`}</div>
+        </td>
+        <td>${escapeHtml(c.experience || "—")}</td>
+        <td>
+          ${
+            isRanked
+              ? `
+                <div class="skillbar">
+                  <div class="bar"><div class="fill" style="width:${Math.max(0, Math.min(100, sm))}%;"></div></div>
+                  <div class="pct">${sm}%</div>
+                </div>
+              `
+              : `<span class="muted">—</span>`
+          }
+        </td>
+        <td>
+          ${
+            isRanked
+              ? `
+                <div class="score">
+                  <div class="score-val" style="color:${overall >= 85 ? "#16a34a" : overall >= 70 ? "#f59e0b" : "#ef4444"}">${overall}%</div>
+                  <span class="score-tag ${tag.c}">${tag.t}</span>
+                </div>
+              `
+              : `<span class="muted">—</span>`
+          }
+        </td>
+        <td>
+          <div class="actions">
+            <button class="icon-pill" type="button" data-action="file" data-id="${c.id}" title="Open Full Page">
+              <i data-lucide="file-text"></i>
+            </button>
+            <button class="icon-pill" type="button" data-action="eye" data-id="${c.id}" title="Quick View">
+              <i data-lucide="eye"></i>
+            </button>
+            <button class="icon-pill${starred}" type="button" data-action="star" data-id="${c.id}" title="Shortlist">
+              <i data-lucide="star"></i>
+            </button>
+            <button class="icon-pill" type="button" data-action="delete" data-id="${c.id}" title="Delete Resume">
+              <i data-lucide="trash-2"></i>
+            </button>
+          </div>
+        </td>
+      </tr>
+    `;
+  };
+
+  const syncStars = () => {
+    if (!els.tbody) return;
+    const btns = els.tbody.querySelectorAll('[data-action="star"]');
+    btns.forEach((b) => {
+      const id = String(b.getAttribute("data-id") || "");
+      if (state.shortlist.has(id)) b.classList.add("starred");
+      else b.classList.remove("starred");
+    });
+  };
+
+  const renderTable = () => {
+    if (!els.tbody) return;
+
+    const filtered = applyFilters(state.candidates);
+    state.byId.clear();
+    filtered.forEach((c) => state.byId.set(String(c.id), c));
+
+    els.tbody.innerHTML = filtered.map(createRow).join("");
+    setCount(filtered.length);
+    syncStars();
+
+    if (window.lucide) lucide.createIcons();
+  };
+
+  const hideModalSection = (el) => {
+    if (!el) return;
+    const wrap =
+      el.closest(".modal-block") ||
+      el.closest(".kv") ||
+      el.parentElement;
+    if (wrap) wrap.style.display = "none";
+  };
+
+  const openModal = (c) => {
+    if (!els.modal) return;
+
+    els.modal.setAttribute("aria-hidden", "false");
+
+    if (els.modalName) els.modalName.textContent = c.name || "—";
+    if (els.modalEmail) els.modalEmail.textContent = c.email || "—";
+    if (els.modalOverall) els.modalOverall.textContent = c.source === "ranked" ? `${Math.round(Number(c.overall_score || 0))}%` : "—";
+    if (els.modalSkill) els.modalSkill.textContent = c.source === "ranked" ? `${Math.round(Number(c.skill_match || 0))}%` : "—";
+
+    const base = Number(c.overall_score || 0) * 0.6 + Number(c.skill_match || 0) * 0.4;
+
+    if (els.modalShort) els.modalShort.textContent = c.source === "ranked" ? `${Math.max(0, Math.min(100, Math.round(base)))}%` : "—";
+    if (els.modalExp) els.modalExp.textContent = c.experience || "—";
+
+    // hide education + certifications from eye modal
+    hideModalSection(els.modalEdu);
+    hideModalSection(els.modalCerts);
+
+    const matched = (c.matched_skills || []).slice(0, 12);
+    const extra = (c.extra_skills || []).slice(0, 12);
+
+    if (els.modalMatched) {
+      els.modalMatched.innerHTML = matched.length
+        ? matched.map((s) => chipHtml(s, "green")).join("")
+        : `<span class="muted">—</span>`;
+    }
+
+    if (els.modalExtra) {
+      els.modalExtra.innerHTML = extra.length
+        ? extra.map((s) => chipHtml(s, "blue")).join("")
+        : `<span class="muted">—</span>`;
+    }
+
+    if (els.modalCerts) {
+      els.modalCerts.innerHTML = "";
+    }
+    if (els.modalEdu) {
+      els.modalEdu.textContent = "";
+    }
+  };
+
+  const closeModal = () => {
+    if (els.modal) els.modal.setAttribute("aria-hidden", "true");
+  };
+
+  const toggleStar = (id) => {
+    const sid = String(id);
+    if (state.shortlist.has(sid)) state.shortlist.delete(sid);
+    else state.shortlist.add(sid);
+    saveShortlist();
+    syncStars();
+  };
+
+  const onTableClick = async (e) => {
+    const btn = e.target.closest("[data-action]");
+    if (!btn) return;
+
+    const action = btn.getAttribute("data-action");
+    const id = btn.getAttribute("data-id");
+    if (!id) return;
+
+    if (action === "file") {
+      openFullPage(id);
+      return;
+    }
+
+    if (action === "star") {
+      toggleStar(id);
+      return;
+    }
+
+    if (action === "delete") {
+      const c = state.byId.get(String(id));
+      await deleteResume(id, c?.name || "");
+      return;
+    }
+
+    if (action === "eye" || action === "skills") {
+      const c = state.byId.get(String(id));
+      if (c) openModal(c);
+    }
+  };
+
+  const loadForJob = async (jobId) => {
+    state.activeJobId = String(jobId || "");
+
+    if (!state.activeJobId) {
+      state.candidates = buildCandidatesFromAllResumes();
+      renderTable();
+      return;
+    }
+
+    const ranked = await getRanked(state.activeJobId);
+    state.candidates = buildCandidatesFromRanked(ranked);
+    renderTable();
+  };
+
+  const initEls = () => {
+    els.jobSelect = document.getElementById("job-select");
+    els.scoreSelect = document.getElementById("score-filter");
+    els.searchInput = document.getElementById("candidate-search");
+    els.tbody = document.getElementById("ranked-candidates-body");
+    els.countText = document.getElementById("candidates-count");
+    els.exportBtn = document.getElementById("export-csv");
+
+    els.modal = document.getElementById("candidate-modal");
+    els.modalName = document.getElementById("modal-name");
+    els.modalEmail = document.getElementById("modal-email");
+    els.modalOverall = document.getElementById("modal-overall");
+    els.modalSkill = document.getElementById("modal-skillmatch");
+    els.modalShort = document.getElementById("modal-shortprob");
+    els.modalExp = document.getElementById("modal-exp");
+    els.modalEdu = document.getElementById("modal-edu");
+    els.modalMatched = document.getElementById("modal-matched");
+    els.modalExtra = document.getElementById("modal-extra");
+    els.modalCerts = document.getElementById("modal-certs");
+  };
+
+  const exportCSV = () => {
+    const rows = applyFilters(state.candidates);
+    const header = [
+      "Rank",
+      "Name",
+      "Email",
+      "Experience",
+      "Education",
+      "Skill Match",
+      "Overall Score",
+      "Matched Skills",
+      "Extra Skills",
+      "Shortlisted",
+    ];
+
+    const esc = (v) => {
+      const s = String(v ?? "");
+      if (/[",\n]/.test(s)) return `"${s.replaceAll('"', '""')}"`;
+      return s;
     };
-  }
 
-  if (window.lucide) lucide.createIcons();
-}
+    const lines = [header.join(",")];
 
-// expose for layout.js handler map
-window.loadCandidateResumePage = loadCandidateResumePage;
+    for (const c of rows) {
+      lines.push(
+        [
+          c.source === "ranked" ? c.rank : "",
+          c.name,
+          c.email,
+          c.experience,
+          c.education,
+          c.source === "ranked" ? Math.round(Number(c.skill_match || 0)) + "%" : "",
+          c.source === "ranked" ? Math.round(Number(c.overall_score || 0)) + "%" : "",
+          (c.matched_skills || []).join(" | "),
+          (c.extra_skills || []).join(" | "),
+          state.shortlist.has(String(c.id)) ? "Yes" : "No",
+        ].map(esc).join(",")
+      );
+    }
 
-// standalone safety
-if (document.readyState === "loading") {
-  document.addEventListener("DOMContentLoaded", () => {
-    if (document.getElementById("r-name")) loadCandidateResumePage();
-  });
-} else {
-  if (document.getElementById("r-name")) loadCandidateResumePage();
-}
+    const blob = new Blob([lines.join("\n")], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "candidates.csv";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  };
+
+  const bindPageEvents = () => {
+    if (state.pageBound) return;
+    state.pageBound = true;
+
+    els.jobSelect?.addEventListener("change", async () => {
+      try {
+        await loadForJob(els.jobSelect.value);
+      } catch (error) {
+        console.error("Candidates job filter failed:", error);
+        state.candidates = [];
+        renderTable();
+      }
+    });
+
+    els.scoreSelect?.addEventListener("change", () => {
+      state.scoreFilter = els.scoreSelect.value || "";
+      renderTable();
+    });
+
+    els.searchInput?.addEventListener("input", () => {
+      state.search = els.searchInput.value || "";
+      renderTable();
+    });
+
+    els.tbody?.addEventListener("click", onTableClick);
+    els.exportBtn?.addEventListener("click", exportCSV);
+
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && els.modal?.getAttribute("aria-hidden") === "false") {
+        closeModal();
+      }
+    });
+
+    els.modal?.addEventListener("click", (e) => {
+      const closeBtn = e.target.closest("[data-close='1']");
+      if (closeBtn) closeModal();
+    });
+  };
+
+  const bindFocusRefresh = () => {
+    if (state.focusBound) return;
+    state.focusBound = true;
+
+    window.addEventListener("focus", async () => {
+      const updated = localStorage.getItem("resume_updated");
+      if (!updated) return;
+
+      localStorage.removeItem("resume_updated");
+
+      try {
+        await loadResumes();
+        await loadJobs();
+
+        if (els.jobSelect) {
+          els.jobSelect.value = state.activeJobId || "";
+        }
+
+        await loadForJob(state.activeJobId);
+      } catch (error) {
+        console.error("Candidates refresh failed:", error);
+      }
+    });
+  };
+
+  const boot = async () => {
+    initEls();
+
+    if (!els.tbody) {
+      console.error("Candidates page HTML not loaded yet.");
+      return;
+    }
+
+    loadShortlist();
+    state.pageBound = false;
+    bindPageEvents();
+    bindFocusRefresh();
+
+    state.search = "";
+    state.scoreFilter = "";
+    state.activeJobId = "";
+
+    if (els.searchInput) els.searchInput.value = "";
+    if (els.scoreSelect) els.scoreSelect.value = "";
+    if (els.jobSelect) els.jobSelect.value = "";
+
+    await loadJobs();
+    await loadResumes();
+
+    if (els.jobSelect) els.jobSelect.value = "";
+
+    try {
+      await loadForJob("");
+    } catch (error) {
+      console.error("Candidates boot failed:", error);
+      state.candidates = [];
+      renderTable();
+    }
+  };
+
+  window.loadCandidates = boot;
+})();

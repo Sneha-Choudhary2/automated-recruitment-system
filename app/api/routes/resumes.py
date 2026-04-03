@@ -64,6 +64,10 @@ def upload_resume(
         "resume_id": resume.id,
         "uploaded_by_user_id": resume.user_id,
         "original_filename": file.filename,
+        "filename": resume.filename,
+        "file_path": resume.file_path,
+        "extracted_text": resume.extracted_text,
+        "uploaded_at": resume.uploaded_at,
         "message": "Resume uploaded, text extracted, and saved successfully",
     }
 
@@ -74,7 +78,7 @@ def upload_resume(
 
 @router.get("/")
 def get_resumes(db: Session = Depends(get_db)):
-    resumes = db.query(Resume).all()
+    resumes = db.query(Resume).order_by(Resume.id.desc()).all()
 
     return [
         {
@@ -89,12 +93,11 @@ def get_resumes(db: Session = Depends(get_db)):
 
 
 # ===============================
-# DELETE RESUME
+# GET SINGLE RESUME
 # ===============================
 
-@router.delete("/{resume_id}")
-def delete_resume(resume_id: int, db: Session = Depends(get_db)):
-
+@router.get("/{resume_id}")
+def get_resume(resume_id: int, db: Session = Depends(get_db)):
     resume = db.query(Resume).filter(Resume.id == resume_id).first()
 
     if not resume:
@@ -103,11 +106,32 @@ def delete_resume(resume_id: int, db: Session = Depends(get_db)):
             detail="Resume not found"
         )
 
-    # delete file from disk
+    return {
+        "id": resume.id,
+        "filename": resume.filename,
+        "file_path": resume.file_path,
+        "extracted_text": resume.extracted_text,
+        "uploaded_at": resume.uploaded_at,
+    }
+
+
+# ===============================
+# DELETE RESUME
+# ===============================
+
+@router.delete("/{resume_id}")
+def delete_resume(resume_id: int, db: Session = Depends(get_db)):
+    resume = db.query(Resume).filter(Resume.id == resume_id).first()
+
+    if not resume:
+        raise HTTPException(
+            status_code=404,
+            detail="Resume not found"
+        )
+
     if resume.file_path and os.path.exists(resume.file_path):
         os.remove(resume.file_path)
 
-    # delete from database
     db.delete(resume)
     db.commit()
 

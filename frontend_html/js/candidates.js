@@ -36,6 +36,7 @@
   };
 
   const storageKey = "recruitai_shortlist_ids";
+  const detailCacheKey = "recruitai_candidate_detail_cache";
 
   const fetchJSON = async (url, opts) => {
     const res = await fetch(url, opts);
@@ -218,6 +219,11 @@
         skill_match: Number.isFinite(skillMatch) ? skillMatch : 0,
         overall_score: Number.isFinite(overall) ? overall : 0,
         source: "ranked",
+
+        filename: resume?.filename || r.filename || name,
+        extracted_text: resume?.extracted_text || "",
+        uploaded_at: resume?.uploaded_at || null,
+        file_path: resume?.file_path || null,
       });
     }
 
@@ -265,6 +271,11 @@
         skill_match: 0,
         overall_score: 0,
         source: "all",
+
+        filename: resume?.filename || name,
+        extracted_text: resume?.extracted_text || "",
+        uploaded_at: resume?.uploaded_at || null,
+        file_path: resume?.file_path || null,
       });
     }
 
@@ -300,7 +311,18 @@
     });
   };
 
+  const cacheCandidateDetails = (candidate) => {
+    try {
+      const raw = localStorage.getItem(detailCacheKey);
+      const map = raw ? JSON.parse(raw) : {};
+      map[String(candidate.id)] = candidate;
+      localStorage.setItem(detailCacheKey, JSON.stringify(map));
+    } catch {}
+  };
+
   const openFullPage = (id) => {
+    const candidate = state.byId.get(String(id));
+    if (candidate) cacheCandidateDetails(candidate);
     window.location.href = `index.html?page=candidate-resume&resume_id=${encodeURIComponent(id)}`;
   };
 
