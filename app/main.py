@@ -16,6 +16,7 @@ from app.api.routes.admin import router as admin_router
 from app.api.routes.resumes import router as resumes_router
 from app.api.jobs import router as jobs_router
 from app.api.ats_routes import router as ats_router
+from app.api.routes.ai_assist import router as ai_assist_router
 
 
 
@@ -44,6 +45,7 @@ app.include_router(admin_router)
 app.include_router(resumes_router)
 app.include_router(jobs_router)
 app.include_router(ats_router)
+app.include_router(ai_assist_router)
 
 
 

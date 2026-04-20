@@ -119,16 +119,15 @@ function loadUploadPage() {
 
             showStatus(data.message || "Resume uploaded successfully.", "success");
 
-selectedFile = null;
-fileInput.value = "";
-filePreview.style.display = "none";
-uploadBtn.textContent = "Upload Resume";
-uploadBtn.disabled = true;
+            selectedFile = null;
+            fileInput.value = "";
+            filePreview.style.display = "none";
+            uploadBtn.textContent = "Upload Resume";
+            uploadBtn.disabled = true;
 
-await loadUploadedResumes();
+            await loadUploadedResumes();
 
-/* 🔹 IMPORTANT: notify other pages to refresh */
-localStorage.setItem("resume_updated", Date.now().toString());
+            localStorage.setItem("resume_updated", Date.now().toString());
         } catch (error) {
             console.error("Upload error:", error);
             showStatus(error.message || "Upload failed", "error");
@@ -182,10 +181,47 @@ async function loadUploadedResumes() {
     }
 }
 
-// expose for layout.js
+window.getAIChatContext = function () {
+    try {
+        const uploadedResumeItems = Array.from(document.querySelectorAll("#resumeList .resume-list-item"));
+        const resumes = uploadedResumeItems.map((item) => {
+            const name = item.querySelector(".resume-list-name")?.textContent?.trim() || "";
+            const meta = item.querySelector(".resume-list-meta")?.textContent?.trim() || "";
+            return {
+                title: name,
+                raw_text: meta
+            };
+        });
+
+        return {
+            page: "upload",
+            jobs: [],
+            candidates: [],
+            upload_info: {
+                supported_formats: ["PDF", "DOC", "DOCX"],
+                max_file_size: "5MB",
+                pipeline_steps: [
+                    "Text Extraction",
+                    "NLP Analysis",
+                    "AI Detection",
+                    "Job Matching",
+                    "ML Prediction"
+                ]
+            },
+            uploaded_resumes: resumes
+        };
+    } catch (e) {
+        console.error("AI upload context error:", e);
+        return {
+            page: "upload",
+            candidates: [],
+            jobs: []
+        };
+    }
+};
+
 window.loadUploadPage = loadUploadPage;
 
-// standalone safety
 if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", () => {
         if (document.getElementById("dropZone")) loadUploadPage();

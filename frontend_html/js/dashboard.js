@@ -1,5 +1,4 @@
 async function loadDashboardData() {
-
     const totalEl = document.getElementById("totalCandidates");
     const avgEl = document.getElementById("avgMatch");
     const shortEl = document.getElementById("shortlisted");
@@ -9,56 +8,113 @@ async function loadDashboardData() {
 
     if (!dropdown || !container) return;
 
-    try {
+    bindDashboardButtons();
 
-        // 🔹 Fetch Jobs
+    try {
         const jobResponse = await fetch("http://127.0.0.1:8000/jobs/");
         const jobs = await jobResponse.json();
 
-        if (!jobs.length) {
+        if (!Array.isArray(jobs) || !jobs.length) {
             container.innerHTML = "<p>No jobs available.</p>";
+            if (totalEl) totalEl.textContent = "0";
+            if (avgEl) avgEl.textContent = "0%";
+            if (shortEl) shortEl.textContent = "0";
+            await loadActiveJobs();
             return;
         }
 
-        // 🔹 Populate Dropdown
         dropdown.innerHTML = "";
 
-        jobs.forEach(job => {
+        jobs.forEach((job) => {
             const option = document.createElement("option");
             option.value = job.id;
             option.textContent = job.title;
             dropdown.appendChild(option);
         });
 
-        // Default latest job
         const defaultJob = jobs[0];
         dropdown.value = defaultJob.id;
         currentTitle.textContent = defaultJob.title;
 
         await loadRanking(defaultJob.id);
 
-        dropdown.addEventListener("change", async (e) => {
+        dropdown.onchange = async (e) => {
             const jobId = e.target.value;
-            const selected = jobs.find(j => j.id == jobId);
-            currentTitle.textContent = selected.title;
+            const selected = jobs.find((j) => String(j.id) === String(jobId));
+            currentTitle.textContent = selected?.title || "Selected Job";
             await loadRanking(jobId);
-        });
+        };
 
         await loadActiveJobs();
 
-        // 🔹 Manage Jobs SPA Navigation
         const manageBtn = document.getElementById("manageJobsBtn");
         if (manageBtn) {
-            manageBtn.addEventListener("click", () => {
-                loadPage("pages/job-description.html");
-            });
+            manageBtn.onclick = () => {
+                if (typeof loadPage === "function") {
+                    loadPage("pages/job-description.html");
+                } else {
+                    window.location.href = "index.html?page=job-description";
+                }
+            };
         }
 
     } catch (error) {
         console.error("Dashboard load error:", error);
+        container.innerHTML = "<p>Error loading dashboard.</p>";
     }
 }
 
+function bindDashboardButtons() {
+    const quickButtons = document.querySelectorAll(".quick-actions .quick-btn");
+
+    quickButtons.forEach((btn) => {
+        const text = (btn.textContent || "").trim().toLowerCase();
+
+        btn.onclick = (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+
+            if (text.includes("upload")) {
+                goToPage("upload");
+                return;
+            }
+
+            if (text.includes("create job")) {
+                goToPage("job-description");
+                return;
+            }
+
+            if (text.includes("view rankings")) {
+                goToPage("candidates");
+            }
+        };
+    });
+}
+
+function goToPage(page) {
+    const pagePathMap = {
+        upload: "pages/upload.html",
+        "job-description": "pages/job-description.html",
+        candidates: "pages/candidates.html",
+        dashboard: "pages/dashboard.html"
+    };
+
+    const pagePath = pagePathMap[page];
+
+    if (typeof loadPage === "function" && pagePath) {
+        const url = new URL(window.location.href);
+        url.searchParams.set("page", page);
+        window.history.pushState({}, "", url.toString());
+
+        if (typeof setActiveSidebar === "function") {
+            setActiveSidebar(page);
+        }
+
+        loadPage(pagePath);
+    } else {
+        window.location.href = `index.html?page=${page}`;
+    }
+}
 
 async function loadRanking(jobId) {
     const totalEl = document.getElementById("totalCandidates");
@@ -82,11 +138,11 @@ async function loadRanking(jobId) {
 
         container.innerHTML = "";
 
-        ranked.forEach(candidate => {
+        ranked.forEach((candidate) => {
             totalScore += Number(candidate.match_score || 0);
             if (Number(candidate.match_score || 0) >= 50) shortlisted++;
 
-            const resume = resumes.find(r => Number(r.id) === Number(candidate.resume_id));
+            const resume = resumes.find((r) => Number(r.id) === Number(candidate.resume_id));
 
             const rawName =
                 resume?.candidate_name ||
@@ -138,45 +194,55 @@ async function loadRanking(jobId) {
         container.innerHTML = "<p>Error loading candidates.</p>";
     }
 }
-async function loadActiveJobs() {
 
+async function loadActiveJobs() {
     const container = document.getElementById("activeJobsList");
     const activeJobsEl = document.getElementById("activeJobs");
 
     if (!container) return;
 
-    const response = await fetch("http://127.0.0.1:8000/jobs/");
-    const jobs = await response.json();
+    try {
+        const response = await fetch("http://127.0.0.1:8000/jobs/");
+        const jobs = await response.json();
 
-    if (activeJobsEl) {
-        activeJobsEl.textContent = jobs.length;
+        if (activeJobsEl) {
+            activeJobsEl.textContent = Array.isArray(jobs) ? jobs.length : 0;
+        }
+
+        container.innerHTML = "";
+
+        if (!Array.isArray(jobs) || !jobs.length) {
+            container.innerHTML = "<p>No active jobs found.</p>";
+            return;
+        }
+
+        jobs.forEach((job) => {
+            const jobCard = document.createElement("div");
+            jobCard.className = "job-card";
+
+            jobCard.innerHTML = `
+                <div class="job-header">
+                    <div class="job-title">${job.title}</div>
+                    <div class="job-id">#${job.id}</div>
+                </div>
+
+                <div class="job-desc">
+                    ${(job.raw_text || "").substring(0, 120)}${(job.raw_text || "").length > 120 ? "..." : ""}
+                </div>
+
+                <div class="job-footer">
+                    Deadline: ${job.application_deadline ? job.application_deadline.split("T")[0] : "Not set"}
+                </div>
+            `;
+
+            container.appendChild(jobCard);
+        });
+    } catch (error) {
+        console.error("Active jobs load error:", error);
+        container.innerHTML = "<p>Error loading active jobs.</p>";
     }
-
-    container.innerHTML = "";
-
-    jobs.forEach(job => {
-
-        const jobCard = document.createElement("div");
-        jobCard.className = "job-card";
-
-        jobCard.innerHTML = `
-            <div class="job-header">
-                <div class="job-title">${job.title}</div>
-                <div class="job-id">#${job.id}</div>
-            </div>
-
-            <div class="job-desc">
-                ${job.raw_text.substring(0, 120)}...
-            </div>
-
-            <div class="job-footer">
-                Deadline: ${job.application_deadline ? job.application_deadline.split("T")[0] : "Not set"}
-            </div>
-        `;
-
-        container.appendChild(jobCard);
-    });
 }
+
 window.addEventListener("focus", async () => {
     const dropdown = document.getElementById("jobDropdown");
     if (!dropdown) return;
@@ -187,3 +253,65 @@ window.addEventListener("focus", async () => {
         await loadActiveJobs();
     }
 });
+
+window.getAIChatContext = function () {
+    try {
+        const totalCandidates = document.getElementById("totalCandidates")?.textContent?.trim() || "0";
+        const activeJobs = document.getElementById("activeJobs")?.textContent?.trim() || "0";
+        const avgMatch = document.getElementById("avgMatch")?.textContent?.trim() || "0%";
+        const shortlisted = document.getElementById("shortlisted")?.textContent?.trim() || "0";
+        const currentJobTitle = document.getElementById("currentJobTitle")?.textContent?.trim() || "";
+
+        const topCandidateRows = Array.from(document.querySelectorAll("#topCandidatesList .candidate-row"));
+        const candidates = topCandidateRows.map((row) => {
+            const name = row.querySelector(".candidate-name")?.textContent?.trim() || "";
+            const sub = row.querySelector(".candidate-sub")?.textContent?.trim() || "";
+            const scoreText = row.querySelector(".score-value")?.textContent?.trim() || "0";
+            const score = Number(String(scoreText).replace("%", "").trim()) || 0;
+
+            const matchedSkills = sub && sub !== "Skills detected"
+                ? sub.split(",").map((s) => s.trim()).filter(Boolean)
+                : [];
+
+            return {
+                name,
+                candidate_name: name,
+                score,
+                matched_skills: matchedSkills,
+                missing_skills: []
+            };
+        });
+
+        const jobs = Array.from(document.querySelectorAll("#activeJobsList .job-card")).map((card) => {
+            const title = card.querySelector(".job-title")?.textContent?.trim() || "";
+            const desc = card.querySelector(".job-desc")?.textContent?.trim() || "";
+            const footer = card.querySelector(".job-footer")?.textContent?.trim() || "";
+
+            return {
+                title,
+                raw_text: desc,
+                application_deadline: footer.replace(/^Deadline:\s*/i, "").trim()
+            };
+        });
+
+        return {
+            page: "dashboard",
+            jd_text: currentJobTitle ? `Current selected job: ${currentJobTitle}` : null,
+            candidates,
+            jobs,
+            dashboard_stats: {
+                total_candidates: totalCandidates,
+                active_jobs: activeJobs,
+                avg_match: avgMatch,
+                shortlisted
+            }
+        };
+    } catch (e) {
+        console.error("AI dashboard context error:", e);
+        return {
+            page: "dashboard",
+            candidates: [],
+            jobs: []
+        };
+    }
+};

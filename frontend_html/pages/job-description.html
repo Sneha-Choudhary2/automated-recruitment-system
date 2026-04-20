@@ -1,23 +1,19 @@
 <div class="jd-page">
-
     <div class="jd-header">
         <h1>Job Description</h1>
         <p>Create and manage job descriptions for candidate matching</p>
     </div>
 
     <div class="jd-grid">
-
-        <!-- LEFT COLUMN -->
         <div class="jd-card">
-
             <h3>New Job Description</h3>
+
             <div id="editModeBanner" class="edit-banner" style="display:none;">
-    Editing Mode
-    <button type="button" id="cancelEditBtn">Cancel</button>
-</div>
+                Editing Mode
+                <button type="button" id="cancelEditBtn">Cancel</button>
+            </div>
 
-            <form id="jobForm">
-
+            <form id="jobForm" onsubmit="return false;">
                 <div class="form-group">
                     <label>Job Title *</label>
                     <input type="text" id="jobTitle" required>
@@ -28,50 +24,21 @@
                     <textarea id="jobRawText" required></textarea>
                 </div>
 
-                <!-- SKILL SELECTOR -->
-                <div class="form-group">
-                    <label>Required Skills *</label>
-
-                    <input type="text" id="skillInput"
-                           placeholder="Type a skill and press Enter">
-
-                    <div id="selectedSkills" class="selected-skills"></div>
-
-                    <div id="skillSuggestions" class="skill-suggestions">
-                        <span>Python</span>
-                        <span>JavaScript</span>
-                        <span>React</span>
-                        <span>Machine Learning</span>
-                        <span>SQL</span>
-                        <span>TensorFlow</span>
-                        <span>AWS</span>
-                        <span>Data Analysis</span>
-                    </div>
-                </div>
-
                 <div class="form-group">
                     <label>Application Deadline</label>
                     <input type="date" id="jobDeadline">
                 </div>
 
-                <button type="submit" class="jd-save-btn">
+                <button type="button" class="jd-save-btn" id="saveJobBtn">
                     Save Job Description
                 </button>
-
             </form>
-
         </div>
 
-        <!-- RIGHT COLUMN -->
         <div class="jd-card">
-
             <h3>Saved Jobs</h3>
             <p id="jobCount">0 job(s) created</p>
-
             <div id="savedJobsList"></div>
-
         </div>
-
     </div>
-
 </div>

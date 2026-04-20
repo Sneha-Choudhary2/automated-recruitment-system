@@ -20,6 +20,7 @@
     modalMatched: null,
     modalExtra: null,
     modalCerts: null,
+    modalCompanies: null,
   };
 
   const state = {
@@ -37,6 +38,19 @@
 
   const storageKey = "recruitai_shortlist_ids";
   const detailCacheKey = "recruitai_candidate_detail_cache";
+
+  const COMMON_SKILLS = [
+    "python", "java", "javascript", "typescript", "sql", "mysql", "postgresql",
+    "react", "node", "node.js", "express", "fastapi", "django", "flask",
+    "html", "css", "bootstrap", "tailwind",
+    "machine learning", "deep learning", "nlp", "llm", "rag",
+    "data analysis", "pandas", "numpy", "scikit-learn", "tensorflow", "pytorch",
+    "power bi", "tableau", "excel",
+    "aws", "azure", "gcp", "docker", "kubernetes",
+    "git", "github", "linux", "mongodb", "redis",
+    "rest api", "api", "graphql", "c", "c++", "c#", ".net",
+    "figma", "spark", "hadoop", "databricks", "airflow", "transformers"
+  ];
 
   const fetchJSON = async (url, opts) => {
     const res = await fetch(url, opts);
@@ -80,11 +94,30 @@
     if (Array.isArray(x)) return x.map(String).map((s) => s.trim()).filter(Boolean);
     if (typeof x === "string") {
       return x
-        .split(/[,|\n]/)
+        .split(/[,|\n•]/)
         .map((s) => s.trim())
         .filter(Boolean);
     }
     return [];
+  };
+
+  const dedupeSkills = (skills) => {
+    const seen = new Set();
+    const out = [];
+
+    for (const skill of normalizeSkills(skills)) {
+      const key = skill.toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push(skill);
+    }
+
+    return out;
+  };
+
+  const subtractSkills = (allSkills, matchedSkills) => {
+    const matchedSet = new Set(normalizeSkills(matchedSkills).map((s) => s.toLowerCase()));
+    return dedupeSkills(allSkills).filter((skill) => !matchedSet.has(skill.toLowerCase()));
   };
 
   const getResumeText = (resume) =>
@@ -94,6 +127,32 @@
     resume?.content ||
     resume?.parsed_text ||
     "";
+
+  const summarizeText = (text, maxLines = 3) => {
+    const cleaned = String(text || "").replace(/\n{2,}/g, "\n").trim();
+    if (!cleaned) return "";
+
+    const lines = cleaned
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean);
+
+    const meaningful = [];
+    for (const line of lines) {
+      if (line.length >= 25) meaningful.push(line);
+      if (meaningful.length >= maxLines) break;
+    }
+
+    const joined = meaningful.length ? meaningful.join(" ") : cleaned.slice(0, 250);
+    return joined.length > 350 ? `${joined.slice(0, 350)}...` : joined;
+  };
+
+  const splitLines = (text) =>
+    String(text || "")
+      .replace(/\r/g, "")
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean);
 
   const guessYears = (text) => {
     if (!text) return null;
@@ -111,11 +170,31 @@
     const edu =
       (
         t.match(
-          /\b(Master'?s|Bachelor'?s|B\.?Tech|M\.?Tech|B\.?E|M\.?E|B\.?Sc|M\.?Sc|MBA|Ph\.?D)\b[^\n]{0,40}/i
+          /\b(Master'?s|Bachelor'?s|B\.?Tech|M\.?Tech|B\.?E|M\.?E|B\.?Sc|M\.?Sc|MBA|Ph\.?D)\b[^\n]{0,60}/i
         ) || []
       )[0] || "";
     const years = guessYears(t);
-    return { email, edu, years };
+    const summary = summarizeText(t);
+    return { email, edu, years, summary };
+  };
+
+  const extractPhone = (text) => {
+    const t = String(text || "");
+    const match = t.match(/(?:\+?\d{1,3}[\s\-]?)?(?:\(?\d{3}\)?[\s\-]?)?\d{3}[\s\-]?\d{4}/);
+    return match ? match[0] : "";
+  };
+
+  const extractSkillsFromText = (text) => {
+    const lower = String(text || "").toLowerCase();
+    const found = [];
+
+    for (const skill of COMMON_SKILLS) {
+      const escaped = skill.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const rx = new RegExp(`(^|[^a-z0-9])${escaped}([^a-z0-9]|$)`, "i");
+      if (rx.test(lower)) found.push(skill);
+    }
+
+    return dedupeSkills(found);
   };
 
   const escapeHtml = (s) =>
@@ -137,12 +216,14 @@
   };
 
   const getRanked = async (jobId) => {
-    const res = await fetch(API + "/ats/rank-resumes", {
+    const res = await fetch(`${API}/ats/rank-resumes`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ job_id: Number(jobId) }),
     });
+
     if (!res.ok) throw new Error("rank failed");
+
     const data = await res.json();
     if (Array.isArray(data)) return data;
     if (Array.isArray(data.ranked_resumes)) return data.ranked_resumes;
@@ -151,7 +232,7 @@
   };
 
   const loadJobs = async () => {
-    const jobs = await fetchJSON(API + "/jobs/");
+    const jobs = await fetchJSON(`${API}/jobs/`);
     state.jobs = Array.isArray(jobs) ? jobs : [];
 
     if (!els.jobSelect) return;
@@ -159,14 +240,14 @@
     els.jobSelect.innerHTML =
       `<option value="">All Jobs</option>` +
       state.jobs
-        .map((j) => `<option value="${j.id}">${escapeHtml(j.title || "Job " + j.id)}</option>`)
+        .map((j) => `<option value="${j.id}">${escapeHtml(j.title || `Job ${j.id}`)}</option>`)
         .join("");
 
     els.jobSelect.value = state.activeJobId || "";
   };
 
   const loadResumes = async () => {
-    const resumes = await fetchJSON(API + "/resumes/");
+    const resumes = await fetchJSON(`${API}/resumes/`);
     state.resumes = Array.isArray(resumes) ? resumes : [];
   };
 
@@ -191,15 +272,25 @@
       const resumeText = getResumeText(resume);
       const parsed = extractFromResumeText(resumeText);
 
-      const matched = normalizeSkills(
-        r.matched_skills || r.matchedSkills || r.skills_matched || resume?.skills || []
-      );
-      const extra = normalizeSkills(
-        r.extra_skills || r.extraSkills || r.additional_skills || []
+      const matched = dedupeSkills(
+        r.matched_skills || r.matchedSkills || r.skills_matched || resume?.matched_skills || []
       );
 
+      const resumeSkills = dedupeSkills(
+        resume?.skills ||
+        resume?.parsed_skills ||
+        resume?.all_skills ||
+        extractSkillsFromText(resumeText) ||
+        []
+      );
+
+      const extra = r.extra_skills || r.extraSkills || r.additional_skills
+        ? dedupeSkills(r.extra_skills || r.extraSkills || r.additional_skills)
+        : subtractSkills(resumeSkills, matched);
+
       const overall = Number(r.match_score ?? r.overall_score ?? r.score ?? 0);
-      const skillMatch = Number(r.similarity_score ?? r.skill_match ?? 0);
+      const skillMatch = Number(r.similarity_score ?? r.skill_match ?? r.skill_match_score ?? 0);
+
       const expYears =
         resume?.years_of_experience ||
         resume?.experience_years ||
@@ -210,20 +301,21 @@
         id: String(resumeId ?? i + 1),
         rank: r.rank ?? i + 1,
         name: String(name || "—"),
-        email: String(r.email || resume?.email || parsed.email || "—"),
+        email: String(r.email || resume?.email || parsed.email || ""),
         education: String(r.education || resume?.education || parsed.edu || "—"),
-        experience: expYears ? `${expYears} years` : "—",
+        experience: expYears ? `${expYears} years` : "",
         matched_skills: matched,
         extra_skills: extra,
-        certifications: normalizeSkills(r.certifications || resume?.certifications || []),
+        certifications: dedupeSkills(r.certifications || resume?.certifications || []),
         skill_match: Number.isFinite(skillMatch) ? skillMatch : 0,
         overall_score: Number.isFinite(overall) ? overall : 0,
         source: "ranked",
-
         filename: resume?.filename || r.filename || name,
-        extracted_text: resume?.extracted_text || "",
+        extracted_text: resume?.extracted_text || resume?.resume_text || "",
         uploaded_at: resume?.uploaded_at || null,
-        file_path: resume?.file_path || null,
+        file_path: resume?.file_path || resume?.file_url || resume?.resume_url || null,
+        phone: resume?.phone || extractPhone(resumeText) || "",
+        summary: parsed.summary || "",
       });
     }
 
@@ -245,10 +337,18 @@
         resume?.file_name ||
         `Candidate ${resume?.id ?? i + 1}`;
 
-      const matched = normalizeSkills(
-        resume?.skills ||
+      const matched = dedupeSkills(
         resume?.matched_skills ||
+        resume?.skills ||
         resume?.parsed_skills ||
+        []
+      );
+
+      const allSkills = dedupeSkills(
+        resume?.skills ||
+        resume?.parsed_skills ||
+        resume?.all_skills ||
+        extractSkillsFromText(resumeText) ||
         []
       );
 
@@ -262,20 +362,21 @@
         id: String(resume?.id ?? i + 1),
         rank: i + 1,
         name: String(name || "—"),
-        email: String(resume?.email || parsed.email || "—"),
+        email: String(resume?.email || parsed.email || ""),
         education: String(resume?.education || parsed.edu || "—"),
-        experience: expYears ? `${expYears} years` : "—",
+        experience: expYears ? `${expYears} years` : "",
         matched_skills: matched,
-        extra_skills: [],
-        certifications: normalizeSkills(resume?.certifications || []),
+        extra_skills: subtractSkills(allSkills, matched),
+        certifications: dedupeSkills(resume?.certifications || []),
         skill_match: 0,
         overall_score: 0,
         source: "all",
-
         filename: resume?.filename || name,
-        extracted_text: resume?.extracted_text || "",
+        extracted_text: resume?.extracted_text || resume?.resume_text || "",
         uploaded_at: resume?.uploaded_at || null,
-        file_path: resume?.file_path || null,
+        file_path: resume?.file_path || resume?.file_url || resume?.resume_url || null,
+        phone: resume?.phone || extractPhone(resumeText) || "",
+        summary: parsed.summary || "",
       });
     }
 
@@ -295,9 +396,7 @@
           c.experience,
           ...(c.matched_skills || []),
           ...(c.extra_skills || []),
-        ]
-          .join(" ")
-          .toLowerCase();
+        ].join(" ").toLowerCase();
 
         if (!hay.includes(q)) return false;
       }
@@ -343,6 +442,7 @@
           method: ep.method,
           headers: ep.method === "POST" ? { "Content-Type": "application/json" } : undefined,
         });
+
         if (res.ok) {
           ok = true;
           break;
@@ -366,6 +466,7 @@
   const createRow = (c) => {
     const topSkills = (c.matched_skills || []).slice(0, 3);
     const restCount = Math.max(0, (c.matched_skills || []).length - topSkills.length);
+
     const skillsHtml =
       topSkills.map((s) => `<span class="chip">${escapeHtml(s)}</span>`).join("") +
       (restCount
@@ -394,7 +495,7 @@
         <td>${isRanked ? `<div class="${rankCls}">${c.rank}</div>` : `<div class="rank-pill">—</div>`}</td>
         <td>
           <div class="cand-name">${escapeHtml(c.name)}</div>
-          <div class="cand-email">${escapeHtml(c.email)}</div>
+          <div class="cand-email">${escapeHtml(c.email || "—")}</div>
         </td>
         <td>
           <div class="chips-row">${skillsHtml || `<span class="muted">—</span>`}</div>
@@ -446,6 +547,7 @@
 
   const syncStars = () => {
     if (!els.tbody) return;
+
     const btns = els.tbody.querySelectorAll('[data-action="star"]');
     btns.forEach((b) => {
       const id = String(b.getAttribute("data-id") || "");
@@ -468,6 +570,12 @@
     if (window.lucide) lucide.createIcons();
   };
 
+  const hideModalSection = (el) => {
+    if (!el) return;
+    const wrap = el.closest(".modal-block") || el.closest(".kv") || el.parentElement;
+    if (wrap) wrap.style.display = "none";
+  };
+
   const openModal = (c) => {
     if (!els.modal) return;
 
@@ -475,18 +583,35 @@
 
     if (els.modalName) els.modalName.textContent = c.name || "—";
     if (els.modalEmail) els.modalEmail.textContent = c.email || "—";
-    if (els.modalOverall) els.modalOverall.textContent = c.source === "ranked" ? `${Math.round(Number(c.overall_score || 0))}%` : "—";
-    if (els.modalSkill) els.modalSkill.textContent = c.source === "ranked" ? `${Math.round(Number(c.skill_match || 0))}%` : "—";
+
+    if (els.modalOverall) {
+      els.modalOverall.textContent = c.source === "ranked"
+        ? `${Math.round(Number(c.overall_score || 0))}%`
+        : "—";
+    }
+
+    if (els.modalSkill) {
+      els.modalSkill.textContent = c.source === "ranked"
+        ? `${Math.round(Number(c.skill_match || 0))}%`
+        : "—";
+    }
 
     const base = Number(c.overall_score || 0) * 0.6 + Number(c.skill_match || 0) * 0.4;
 
-    if (els.modalShort) els.modalShort.textContent = c.source === "ranked" ? `${Math.max(0, Math.min(100, Math.round(base)))}%` : "—";
+    if (els.modalShort) {
+      els.modalShort.textContent = c.source === "ranked"
+        ? `${Math.max(0, Math.min(100, Math.round(base)))}%`
+        : "—";
+    }
+
     if (els.modalExp) els.modalExp.textContent = c.experience || "—";
-    if (els.modalEdu) els.modalEdu.textContent = c.education || "—";
+
+    hideModalSection(els.modalEdu);
+    hideModalSection(els.modalCerts);
+    hideModalSection(els.modalCompanies);
 
     const matched = (c.matched_skills || []).slice(0, 12);
     const extra = (c.extra_skills || []).slice(0, 12);
-    const certs = (c.certifications || []).slice(0, 10);
 
     if (els.modalMatched) {
       els.modalMatched.innerHTML = matched.length
@@ -497,12 +622,6 @@
     if (els.modalExtra) {
       els.modalExtra.innerHTML = extra.length
         ? extra.map((s) => chipHtml(s, "blue")).join("")
-        : `<span class="muted">—</span>`;
-    }
-
-    if (els.modalCerts) {
-      els.modalCerts.innerHTML = certs.length
-        ? certs.map((s) => chipHtml(s, "gray")).join("")
         : `<span class="muted">—</span>`;
     }
   };
@@ -582,10 +701,12 @@
     els.modalMatched = document.getElementById("modal-matched");
     els.modalExtra = document.getElementById("modal-extra");
     els.modalCerts = document.getElementById("modal-certs");
+    els.modalCompanies = document.getElementById("modal-companies");
   };
 
   const exportCSV = () => {
     const rows = applyFilters(state.candidates);
+
     const header = [
       "Rank",
       "Name",
@@ -615,8 +736,8 @@
           c.email,
           c.experience,
           c.education,
-          c.source === "ranked" ? Math.round(Number(c.skill_match || 0)) + "%" : "",
-          c.source === "ranked" ? Math.round(Number(c.overall_score || 0)) + "%" : "",
+          c.source === "ranked" ? `${Math.round(Number(c.skill_match || 0))}%` : "",
+          c.source === "ranked" ? `${Math.round(Number(c.overall_score || 0))}%` : "",
           (c.matched_skills || []).join(" | "),
           (c.extra_skills || []).join(" | "),
           state.shortlist.has(String(c.id)) ? "Yes" : "No",
@@ -699,6 +820,39 @@
     });
   };
 
+  const setCandidatesAIContext = () => {
+    window.getAIChatContext = function () {
+      try {
+        return {
+          page: "candidates",
+          candidates: (state.candidates || []).map((c) => ({
+            name: c.name || "",
+            candidate_name: c.name || "",
+            score: Number(c.overall_score || 0),
+            email: c.email || "",
+            phone: c.phone || "",
+            experience: c.experience || "",
+            summary: c.summary || summarizeText(c.extracted_text || ""),
+            matched_skills: c.matched_skills || [],
+            missing_skills: c.extra_skills || []
+          })),
+          jobs: (state.jobs || []).map((j) => ({
+            title: j.title || "",
+            application_deadline: j.application_deadline || "",
+            raw_text: j.raw_text || ""
+          }))
+        };
+      } catch (e) {
+        console.error("AI context error:", e);
+        return {
+          page: "candidates",
+          candidates: [],
+          jobs: []
+        };
+      }
+    };
+  };
+
   const boot = async () => {
     initEls();
 
@@ -727,10 +881,12 @@
 
     try {
       await loadForJob("");
+      setCandidatesAIContext();
     } catch (error) {
       console.error("Candidates boot failed:", error);
       state.candidates = [];
       renderTable();
+      setCandidatesAIContext();
     }
   };
 

@@ -1,4 +1,3 @@
-<!-- pages/candidate-resume.html (UPDATED: adds Delete button, removes missing skills, keeps layout/ids same) -->
 <div class="resume-page">
   <div class="resume-header">
     <button class="icon-back" onclick="window.history.back()">
@@ -21,7 +20,6 @@
         Download Resume
       </button>
 
-      <!-- NEW: delete resume -->
       <button class="btn-secondary" id="deleteBtn" type="button" title="Delete Resume">
         <i data-lucide="trash-2"></i>
         Delete
@@ -59,7 +57,7 @@
     <div class="resume-left">
       <div class="card">
         <div class="card-header"><h3><i data-lucide="mail"></i> Contact Information</h3></div>
-        <div class="card-body" id="r-contact">Loading…</div>
+        <div class="card-body" id="r-contact">Loading...</div>
       </div>
 
       <div class="card">
@@ -69,31 +67,49 @@
 
       <div class="card">
         <div class="card-header"><h3><i data-lucide="award"></i> Certifications</h3></div>
-        <div class="card-body" id="r-certs">—</div>
+        <div class="card-body">
+          <div id="r-certs" style="display:flex; flex-wrap:wrap; gap:10px; max-height:140px; overflow-y:auto;"></div>
+        </div>
       </div>
 
       <div class="card">
         <div class="card-header"><h3><i data-lucide="code"></i> Skills</h3></div>
-        <div class="card-body" id="r-skills">—</div>
+        <div class="card-body">
+          <div id="r-skills" style="display:flex; flex-wrap:wrap; gap:10px; max-height:220px; overflow-y:auto;"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><h3><i data-lucide="plus-circle"></i> Extra Skills</h3></div>
+        <div class="card-body">
+          <div id="r-extra-skills" style="display:flex; flex-wrap:wrap; gap:10px; max-height:160px; overflow-y:auto;">—</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><h3><i data-lucide="bot"></i> AI / Human Detection</h3></div>
+        <div class="card-body" id="r-ai-detect">—</div>
       </div>
     </div>
 
     <div class="resume-right">
       <div class="card">
         <div class="card-header"><h3><i data-lucide="briefcase"></i> Work Experience</h3></div>
-        <div class="card-body" id="r-work">No detailed work experience available.</div>
+        <div class="card-body">
+          <div id="r-work" style="max-height:320px; overflow-y:auto; white-space:normal; line-height:1.6;">No detailed work experience available.</div>
+        </div>
       </div>
 
       <div class="card">
         <div class="card-header"><h3><i data-lucide="file-text"></i> Full Resume Content</h3></div>
         <div class="card-body">
-          <div class="resume-text-box" id="r-text">Loading…</div>
+          <div class="resume-text-box" id="r-text">Loading...</div>
         </div>
       </div>
 
       <div class="card">
         <div class="card-header"><h3><i data-lucide="check-circle"></i> Skill Match Analysis</h3></div>
-        <div class="card-body" id="r-analysis">—</div>
+        <div class="card-body" id="r-analysis">--</div>
       </div>
     </div>
   </div>
